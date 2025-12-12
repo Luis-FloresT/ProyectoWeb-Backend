@@ -42,7 +42,17 @@ INSTALLED_APPS = [
     # --- FIN CONFIGURACIÓN CORS ---
     'rest_framework',
     'fiesta',
+    'rest_framework.authtoken',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -85,7 +95,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'sandia', 
         'USER': 'postgres', 
-        'PASSWORD':'cecia', 
+        'PASSWORD':'123456',
         'HOST': 'localhost', 
         'PORT': '5432', 
     }
@@ -138,3 +148,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Esto es necesario para permitir que tu frontend (HTML/JS) se conecte a tu API de Django
 CORS_ALLOW_ALL_ORIGINS = True 
 # En desarrollo, esto permite peticiones desde cualquier origen (e.g., Live Server)
+CORS_ALLOW_ALL_ORIGINS = True
