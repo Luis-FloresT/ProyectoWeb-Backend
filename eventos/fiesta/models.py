@@ -1,4 +1,6 @@
 from django.db import models
+from django.conf import settings
+
 
 
 class RegistroUsuario(models.Model):
@@ -204,10 +206,11 @@ class Cancelacion(models.Model):
 
     def __str__(self):
         return f"Cancelación de Reserva {self.reserva.codigo_reserva}"
-    
-    from django.db import models
-from django.conf import settings
 
+
+# =========================
+# MODELO CARRITO DE COMPRAS
+# =========================
 class ItemCarrito(models.Model):
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -216,30 +219,36 @@ class ItemCarrito(models.Model):
     )
 
     servicio = models.ForeignKey(
-        'Servicio',
+        Servicio,
         on_delete=models.CASCADE,
         null=True,
         blank=True
     )
 
     combo = models.ForeignKey(
-        'Combo',
+        Combo,
         on_delete=models.CASCADE,
         null=True,
         blank=True
     )
 
     promocion = models.ForeignKey(
-        'Promocion',
+        Promocion,
         on_delete=models.CASCADE,
         null=True,
         blank=True
     )
 
-    cantidad = models.IntegerField(default=1)
+    cantidad = models.PositiveIntegerField(default=1)
     activo = models.BooleanField(default=True)
     fecha_agregado = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Item Carrito"
+        verbose_name_plural = "Items Carrito"
+        db_table = 'item_carrito'
+
     def __str__(self):
         return f'Carrito de {self.usuario}'
+
 

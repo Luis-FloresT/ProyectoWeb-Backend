@@ -9,6 +9,8 @@ from django.http import HttpResponse
 from rest_framework.authtoken.models import Token
 from django.db.models import Q
 import uuid
+from .models import ItemCarrito
+
 from .models import (
     RegistroUsuario, Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion

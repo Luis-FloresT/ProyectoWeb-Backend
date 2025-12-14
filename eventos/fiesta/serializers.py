@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.db import IntegrityError
+from .models import ItemCarrito
+
 from .models import (
     RegistroUsuario, Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion
@@ -118,3 +120,52 @@ class ReservaSerializer(serializers.ModelSerializer):
             DetalleReserva.objects.create(reserva=reserva, **detalle_data)
 
         return reserva
+
+class ItemCarritoSerializer(serializers.ModelSerializer):
+    servicio_id = serializers.IntegerField(write_only=True, required=False)
+    combo_id = serializers.IntegerField(write_only=True, required=False)
+    promocion_id = serializers.IntegerField(write_only=True, required=False)
+
+    tipo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ItemCarrito
+        fields = [
+            'id',
+            'servicio',
+            'combo',
+            'promocion',
+            'servicio_id',
+            'combo_id',
+            'promocion_id',
+            'cantidad',
+            'activo',
+            'fecha_agregado',
+            'tipo'
+        ]
+        read_only_fields = ['servicio', 'combo', 'promocion', 'fecha_agregado']
+
+    def get_tipo(self, obj):
+        if obj.servicio:
+            return "servicio"
+        if obj.combo:
+            return "combo"
+        if obj.promocion:
+            return "promocion"
+        return None
+    def create(self, validated_data):
+        servicio_id = validated_data.pop('servicio_id', None)
+        combo_id = validated_data.pop('combo_id', None)
+        promocion_id = validated_data.pop('promocion_id', None)
+
+        item = ItemCarrito.objects.create(**validated_data)
+
+        if servicio_id:
+            item.servicio_id = servicio_id
+        if combo_id:
+            item.combo_id = combo_id
+        if promocion_id:
+            item.promocion_id = promocion_id
+
+        item.save()
+        return item
