@@ -204,3 +204,42 @@ class Cancelacion(models.Model):
 
     def __str__(self):
         return f"Cancelación de Reserva {self.reserva.codigo_reserva}"
+    
+    from django.db import models
+from django.conf import settings
+
+class ItemCarrito(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='items_carrito'
+    )
+
+    servicio = models.ForeignKey(
+        'Servicio',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    combo = models.ForeignKey(
+        'Combo',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    promocion = models.ForeignKey(
+        'Promocion',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    cantidad = models.IntegerField(default=1)
+    activo = models.BooleanField(default=True)
+    fecha_agregado = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Carrito de {self.usuario}'
+

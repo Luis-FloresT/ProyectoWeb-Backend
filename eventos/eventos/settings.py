@@ -50,9 +50,10 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
 }
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -93,9 +94,9 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia', 
+        'NAME': 'osa', 
         'USER': 'postgres', 
-        'PASSWORD':'12345',
+        'PASSWORD':'cecia',
         'HOST': 'localhost', 
         'PORT': '5432', 
     }

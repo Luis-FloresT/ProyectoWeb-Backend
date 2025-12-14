@@ -23,22 +23,33 @@ def home(request):
     return HttpResponse("Bienvenido al sistema de eventos y fiestas 🎉")
 
 
+from rest_framework_simplejwt.tokens import RefreshToken
+
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
+
     def post(self, request):
         usuario = request.data.get('usuario')
         clave = request.data.get('clave')
+
         user = authenticate(username=usuario, password=clave)
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
-            return Response({
-                'id': user.id,
-                'username': user.username,
-                'is_admin': user.is_staff,
-                'token': token.key
-            })
-        return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user:
+            return Response(
+                {'message': 'Credenciales inválidas'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'is_admin': user.is_staff,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
+
 
 class RegistroUsuarioView(APIView):
     authentication_classes = []
