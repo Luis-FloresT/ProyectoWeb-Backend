@@ -1,10 +1,18 @@
 from django.db import models
-from django.conf import settings
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import uuid
 
-
+# ==========================================
+# 1. GESTIÓN DE USUARIOS Y CLIENTES
+# ==========================================
 
 class RegistroUsuario(models.Model):
-    """Corresponde a la tabla registro_usuario."""
+    """
+    Cliente externo que realiza la reserva.
+    Separado del User de Django para no mezclar auth interna con datos de clientes.
+    """
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     telefono = models.CharField(max_length=15, unique=True)
@@ -19,8 +27,12 @@ class RegistroUsuario(models.Model):
         db_table = 'registro_usuario'
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido} ({self.email})"
+        return f"{self.nombre} {self.apellido} | {self.email}"
 
+
+# ==========================================
+# 2. CATÁLOGO (Servicios, Combos, Promos)
+# ==========================================
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
@@ -51,7 +63,7 @@ class Promocion(models.Model):
         db_table = 'promocion'
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre} ({self.descuento_porcentaje}% / ${self.descuento_monto})"
 
 
 class Servicio(models.Model):
@@ -71,7 +83,7 @@ class Servicio(models.Model):
         db_table = 'servicio'
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre} - ${self.precio_base}"
 
 
 class Combo(models.Model):
@@ -84,7 +96,7 @@ class Combo(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     servicios = models.ManyToManyField('Servicio', through='ComboServicio', related_name='combos')
-    promocion = models.ForeignKey('Promocion', on_delete=models.SET_NULL, null=True, blank=True, related_name='combos')
+    promocion = models.ForeignKey(Promocion, on_delete=models.SET_NULL, null=True, blank=True, related_name='combos')
 
     class Meta:
         verbose_name = "Combo"
@@ -92,7 +104,7 @@ class Combo(models.Model):
         db_table = 'combo'
 
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre} - ${self.precio_combo}"
 
 
 class ComboServicio(models.Model):
@@ -106,6 +118,59 @@ class ComboServicio(models.Model):
         db_table = 'combo_servicio'
         unique_together = ('combo', 'servicio')
 
+
+# ==========================================
+# 4. GESTIÓN DEL CARRITO
+# ==========================================
+
+class Carrito(models.Model):
+    """
+    Carrito temporal asociado a un cliente registrado.
+    """
+    cliente = models.OneToOneField(RegistroUsuario, on_delete=models.CASCADE, related_name='carrito')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Carrito de Compras"
+        verbose_name_plural = "Carritos de Compras"
+        db_table = 'carrito'
+
+    def __str__(self):
+        return f"Carrito de {self.cliente.nombre}"
+
+class ItemCarrito(models.Model):
+    """
+    Items individuales dentro del carrito. 
+    Puede ser un Servicio O un Combo.
+    """
+    carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE, related_name='items')
+    
+    # Opcionales: El item puede ser servicio O combo
+    servicio = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
+    combo = models.ForeignKey(Combo, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    cantidad = models.PositiveIntegerField(default=1)
+    # Guardamos el precio al momento de añadirlo por si cambia después
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) 
+
+    class Meta:
+        verbose_name = "Item del Carrito"
+        verbose_name_plural = "Items del Carrito"
+        db_table = 'item_carrito'
+
+    def __str__(self):
+        nombre = self.combo.nombre if self.combo else (self.servicio.nombre if self.servicio else "Item desconocido")
+        return f"{nombre} (x{self.cantidad})"
+        
+    @property
+    def subtotal(self):
+        return self.precio_unitario * self.cantidad
+
+
+# ==========================================
+# 3. GESTIÓN DE EVENTOS (Reservas, Pagos)
+# ==========================================
 
 class HorarioDisponible(models.Model):
     fecha = models.DateField()
@@ -121,7 +186,7 @@ class HorarioDisponible(models.Model):
         unique_together = ('fecha', 'hora_inicio', 'hora_fin')
 
     def __str__(self):
-        return f"{self.fecha} ({self.hora_inicio} - {self.hora_fin})"
+        return f"{self.fecha} | {self.hora_inicio} - {self.hora_fin}"
 
 
 class Reserva(models.Model):
@@ -133,11 +198,14 @@ class Reserva(models.Model):
     fecha_inicio = models.TimeField()
     direccion_evento = models.CharField(max_length=255)
     notas_especiales = models.TextField(blank=True, null=True)
+    
+    # Datos financieros
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     impuestos = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    estado = models.CharField(max_length=50, default='PENDIENTE')
+    
+    estado = models.CharField(max_length=50, default='PENDIENTE') # PENDIENTE, CONFIRMADA, CANCELADA
     fecha_reserva = models.DateTimeField(auto_now_add=True)
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 
@@ -145,21 +213,25 @@ class Reserva(models.Model):
         verbose_name = "Reserva"
         verbose_name_plural = "Reservas"
         db_table = 'reserva'
+        ordering = ['-fecha_reserva']
 
     def __str__(self):
-        return f"Reserva {self.codigo_reserva} - Cliente: {self.cliente.email}"
+        return f"#{self.codigo_reserva} - {self.fecha_evento} ({self.estado})"
 
 
 class DetalleReserva(models.Model):
-    reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='detalles')
-    combo = models.ForeignKey(Combo, on_delete=models.SET_NULL, null=True, blank=True)
-    servicio = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
-    
     TIPO_CHOICES = [
         ('C', 'Combo'),
         ('S', 'Servicio'),
     ]
+    
+    reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='detalles')
     tipo = models.CharField(max_length=1, choices=TIPO_CHOICES)
+    
+    # Relaciones opcionales dependiendo del tipo
+    combo = models.ForeignKey(Combo, on_delete=models.SET_NULL, null=True, blank=True)
+    servicio = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
+    
     cantidad = models.IntegerField(default=1)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
@@ -170,7 +242,8 @@ class DetalleReserva(models.Model):
         db_table = 'detalle_reserva'
 
     def __str__(self):
-        return f"Detalle de Reserva {self.reserva.codigo_reserva} - Tipo: {self.tipo}"
+        item_nombre = self.combo.nombre if self.combo else (self.servicio.nombre if self.servicio else "Item eliminado")
+        return f"{self.reserva.codigo_reserva}: {item_nombre} x{self.cantidad}"
 
 
 class Pago(models.Model):
@@ -188,7 +261,7 @@ class Pago(models.Model):
         db_table = 'pago'
 
     def __str__(self):
-        return f"Pago de Reserva {self.reserva.codigo_reserva} - Estado: {self.estado_pago}"
+        return f"Pago {self.reserva.codigo_reserva} - ${self.monto}"
 
 
 class Cancelacion(models.Model):
@@ -205,50 +278,30 @@ class Cancelacion(models.Model):
         db_table = 'cancelacion'
 
     def __str__(self):
-        return f"Cancelación de Reserva {self.reserva.codigo_reserva}"
+        return f"Cancelación #{self.reserva.codigo_reserva}"
 
+# ==========================================
+# 5. SEÑALES (AUTOMATIZACIÓN DE PERFILES)
+# ==========================================
 
-# =========================
-# MODELO CARRITO DE COMPRAS
-# =========================
-class ItemCarrito(models.Model):
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='items_carrito'
-    )
-
-    servicio = models.ForeignKey(
-        Servicio,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-
-    combo = models.ForeignKey(
-        Combo,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-
-    promocion = models.ForeignKey(
-        Promocion,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-
-    cantidad = models.PositiveIntegerField(default=1)
-    activo = models.BooleanField(default=True)
-    fecha_agregado = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        verbose_name = "Item Carrito"
-        verbose_name_plural = "Items Carrito"
-        db_table = 'item_carrito'
-
-    def __str__(self):
-        return f'Carrito de {self.usuario}'
-
-
+@receiver(post_save, sender=User)
+def crear_perfil_cliente_automatico(sender, instance, created, **kwargs):
+    """
+    Esta función se ejecuta AUTOMÁTICAMENTE cada vez que se crea un Usuario de Django
+    (sea por comando createsuperuser, por admin o por registro normal).
+    
+    Si el usuario es nuevo, le crea su perfil en RegistroUsuario para que pueda comprar.
+    """
+    if created:
+        # Verificamos si ya tiene perfil (por si acaso)
+        if not RegistroUsuario.objects.filter(email=instance.email).exists():
+            RegistroUsuario.objects.create(
+                nombre=instance.username,
+                apellido="Admin" if instance.is_staff else "",
+                email=instance.email,
+                # Generamos un teléfono falso único para que no falle la validación
+                telefono=f"000-{uuid.uuid4().hex[:8]}", 
+                contrasena="admin_pass_encrypted", # No relevante para superusers
+                activo=True
+            )
+            print(f"--- Perfil de cliente creado automáticamente para: {instance.username} ---")
