@@ -201,17 +201,34 @@ class RegistroUsuarioView(APIView):
                 return Response({'message': 'Ese correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # 6️⃣ Crear usuario inactivo
+            # Si hay un signal (señal) configurado, esta acción creará automáticamente un RegistroUsuario
             user = User.objects.create_user(username=nombre, email=email, password=clave)
             user.is_active = False
             user.save()
-
-            # 7️⃣ Crear registro asociado
-            registro = RegistroUsuario.objects.create(
-                user=user,
-                nombre=nombre,
-                apellido=apellido,
-                telefono=telefono
-            )
+            
+            # =========================================================================
+            # 7️⃣ CORRECCIÓN DE INTEGRITYERROR: 
+            #    Intentar obtener y actualizar, si falla, crear.
+            # =========================================================================
+            try:
+                # Intentar obtener el RegistroUsuario creado por el signal automático
+                registro = RegistroUsuario.objects.get(user=user)
+                
+                # Actualizar los campos que el signal podría no haber llenado
+                registro.nombre = nombre # Sincroniza el nombre
+                registro.apellido = apellido
+                registro.telefono = telefono
+                registro.save()
+            
+            except RegistroUsuario.DoesNotExist:
+                # Si no se creó automáticamente, se crea manualmente
+                registro = RegistroUsuario.objects.create(
+                    user=user,
+                    nombre=nombre,
+                    apellido=apellido,
+                    telefono=telefono
+                )
+            # =========================================================================
 
             # 8️⃣ Crear token de verificación
             token = str(uuid.uuid4())
@@ -220,9 +237,6 @@ class RegistroUsuarioView(APIView):
             # 9️⃣ Enviar correo de verificación
             link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
             try:
-                # Elegir proveedor: si BREVO_API_KEY está configurada usamos Brevo,
-                # si no, dejamos que el backend de Django (AnyMail/SendGrid o SMTP)
-                # procese el envío usando EmailMessage.send().
                 # Renderizar template HTML
                 html_message = render_to_string('fiesta/email_verificacion.html', {
                     'nombre': nombre,
@@ -246,15 +260,15 @@ class RegistroUsuarioView(APIView):
             return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'})
 
         except IntegrityError as e:
+            # Captura errores de unicidad (como duplicados de email o teléfono si estuvieran configurados)
             print("ERROR DE BASE DE DATOS:")
             traceback.print_exc()
-            return Response({'message': 'Error en base de datos', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Error en base de datos. Usuario o correo ya registrado.', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             print("ERROR INESPERADO EN REGISTRO USUARIO:")
             traceback.print_exc()
             return Response({'message': 'Error inesperado', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class SendTestEmailView(APIView):
     """Enviar un correo de prueba usando el backend configurado (SendGrid/SMTP/Console)."""
