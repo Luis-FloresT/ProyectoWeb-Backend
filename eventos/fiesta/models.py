@@ -1,24 +1,51 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
 
+# ---------------------------
+# MODELOS DE USUARIO
+# ---------------------------
 
 class RegistroUsuario(models.Model):
-    """Corresponde a la tabla registro_usuario."""
+    """Información adicional de usuario."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="perfil")
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     telefono = models.CharField(max_length=15, unique=True)
-    email = models.EmailField(unique=True)
-    contrasena = models.CharField(max_length=128)
     fecha_registro = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)
-    
+
     class Meta:
         verbose_name = "Registro de Usuario"
         verbose_name_plural = "Registros de Usuarios"
         db_table = 'registro_usuario'
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido} ({self.email})"
+        return f"{self.nombre} {self.apellido} ({self.user.email})"
 
+
+class EmailVerificationToken(models.Model):
+    """Token de verificación de correo."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="verification_tokens")
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token}"
+
+
+# ---------------------------
+# MODELOS DE CATEGORIAS Y PROMOCIONES
+# ---------------------------
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100)
@@ -51,6 +78,10 @@ class Promocion(models.Model):
     def __str__(self):
         return self.nombre
 
+
+# ---------------------------
+# MODELOS DE SERVICIOS Y COMBOS
+# ---------------------------
 
 class Servicio(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='servicios')
@@ -105,6 +136,10 @@ class ComboServicio(models.Model):
         unique_together = ('combo', 'servicio')
 
 
+# ---------------------------
+# MODELOS DE HORARIOS Y RESERVAS
+# ---------------------------
+
 class HorarioDisponible(models.Model):
     fecha = models.DateField()
     hora_inicio = models.TimeField()
@@ -145,7 +180,7 @@ class Reserva(models.Model):
         db_table = 'reserva'
 
     def __str__(self):
-        return f"Reserva {self.codigo_reserva} - Cliente: {self.cliente.email}"
+        return f"Reserva {self.codigo_reserva} - Cliente: {self.cliente.user.email}"
 
 
 class DetalleReserva(models.Model):
@@ -170,6 +205,10 @@ class DetalleReserva(models.Model):
     def __str__(self):
         return f"Detalle de Reserva {self.reserva.codigo_reserva} - Tipo: {self.tipo}"
 
+
+# ---------------------------
+# MODELOS DE PAGO Y CANCELACIÓN
+# ---------------------------
 
 class Pago(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name='pago')

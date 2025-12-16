@@ -14,6 +14,9 @@ env/
 staticfiles/
 media/
 
+# Archivo de claves secretas
+.env
+
 # VS Code
 .vscode/
 
