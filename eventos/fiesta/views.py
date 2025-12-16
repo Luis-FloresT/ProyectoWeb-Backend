@@ -75,16 +75,10 @@ class RegistroUsuarioView(APIView):
         if User.objects.filter(username=nombre).exists():
             return Response({'message': 'Usuario ya existe'}, status=400)
         
+        # Solo creamos el User, el signal se encarga de crear el RegistroUsuario automáticamente
         User.objects.create_user(username=nombre, email=email, password=clave)
         
-        RegistroUsuario.objects.create(
-            nombre=nombre, 
-            apellido="", 
-            email=email, 
-            telefono=f"000-{uuid.uuid4().hex[:6]}", 
-            contrasena=clave
-        )
-        return Response({'message': 'Usuario registrado correctamente'})
+        return Response({'message': 'Usuario registrado correctamente'}, status=201)
 
 class RegistroUsuarioViewSet(viewsets.ModelViewSet):
     queryset = RegistroUsuario.objects.all()
