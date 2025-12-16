@@ -23,7 +23,7 @@ class RegistroUsuario(models.Model):
     apellido = models.CharField(max_length=100)
     email = models.EmailField(unique=True, null=True, blank=True) # <-- Reincorporado
     contrasena = models.CharField(max_length=128, null=True, blank=True) # <-- Reincorporado (Aunque no se usa para login con User de Django)
-    telefono = models.CharField(max_length=10, unique=True)
+    telefono = models.CharField(max_length=20, unique=True)
     activo = models.BooleanField(default=True) # <-- Reincorporado
     fecha_registro = models.DateTimeField(auto_now_add=True)
 

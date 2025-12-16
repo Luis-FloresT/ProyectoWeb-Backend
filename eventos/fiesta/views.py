@@ -167,28 +167,22 @@ class LoginView(APIView):
 
 
 
-
 class RegistroUsuarioView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-
+    def post(self,request):
         try:
-            # 1️⃣ Obtener datos y limpiar espacios
             nombre = request.data.get('nombre', '').strip()
             email = request.data.get('email', '').strip()
             clave = request.data.get('clave', '').strip()
             apellido = request.data.get('apellido', '').strip()
             telefono = request.data.get('telefono', '').strip()
-
-            # 2️⃣ Validar campos obligatorios
             if not nombre or not email or not clave:
                 return Response(
                     {'message': 'Campos obligatorios faltantes.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # 3️⃣ Validar email
             try:
                 validate_email(email)
             except ValidationError:
