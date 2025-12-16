@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders', 
     # --- FIN CONFIGURACIÓN CORS ---
     'rest_framework',
+    'anymail',
     'fiesta',
     'rest_framework.authtoken',
 ]
@@ -95,7 +97,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'sandia', 
         'USER': 'postgres', 
-        'PASSWORD':'12345',
+        'PASSWORD':'123456',
         'HOST': 'localhost', 
         'PORT': '5432', 
     }
@@ -154,3 +156,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True 
 # En desarrollo, esto permite peticiones desde cualquier origen (e.g., Live Server)
 CORS_ALLOW_ALL_ORIGINS = True
+
+
+
+

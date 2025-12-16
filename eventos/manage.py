@@ -8,6 +8,11 @@ def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'eventos.settings')
     try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass # Handle if dotenv is not installed or other issues gracefully if needed, or just let it fail if strict.
+    try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
         raise ImportError(
