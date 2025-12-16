@@ -178,6 +178,8 @@ class RegistroUsuarioView(APIView):
             clave = request.data.get('clave', '').strip()
             apellido = request.data.get('apellido', '').strip()
             telefono = request.data.get('telefono', '').strip()
+            
+            # 1️⃣, 2️⃣, 3️⃣ Validaciones de campos obligatorios e email
             if not nombre or not email or not clave:
                 return Response(
                     {'message': 'Campos obligatorios faltantes.'},
