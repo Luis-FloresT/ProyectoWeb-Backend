@@ -1,33 +1,18 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    home, 
-    LoginView, 
-    RegistroUsuarioView, 
+    home, LoginView, RegistroUsuarioView,
+    
     # Vistas de Email/Verificación añadidas
     VerificarEmailView, 
     SendTestEmailView,
-    
-    # ViewSets de Catálogo y Usuarios
-    RegistroUsuarioViewSet, 
-    CategoriaViewSet, 
-    PromocionViewSet, 
-    ServicioViewSet, 
-    ComboViewSet, 
-    ComboServicioViewSet, 
-    
-    # ViewSets de Operaciones
-    HorarioDisponibleViewSet, 
-    ReservaViewSet, 
-    DetalleReservaViewSet, 
-    PagoViewSet, 
-    CancelacionViewSet,
-    
-    # ViewSets y Funciones del Carrito
-    CarritoViewSet, 
-    agregar_al_carrito, 
-    confirmar_carrito, 
-    ItemCarritoViewSet
+
+    RegistroUsuarioViewSet, CategoriaViewSet, PromocionViewSet, 
+    ServicioViewSet, ComboViewSet, ComboServicioViewSet, 
+    HorarioDisponibleViewSet, ReservaViewSet, DetalleReservaViewSet, 
+    PagoViewSet, CancelacionViewSet,
+    # Nuevas importaciones del carrito (ACTUALIZADO)
+    CarritoViewSet, agregar_al_carrito, confirmar_carrito, ItemCarritoViewSet
 )
 
 router = DefaultRouter()
@@ -59,6 +44,11 @@ urlpatterns = [
     path('', home, name='home'),
     path('login/', LoginView.as_view(), name='login'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro_usuario'),
+
+    # --- ENDPOINTS DE EMAIL/VERIFICACIÓN ---
+    path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),
+    path('send-test-email/', SendTestEmailView.as_view(), name='send_test_email'), 
+    
     
     # --- ENDPOINTS DE EMAIL/VERIFICACIÓN ---
     path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),

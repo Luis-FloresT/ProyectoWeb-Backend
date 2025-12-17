@@ -1,19 +1,38 @@
+# 1. Standard Python Library Imports
+import json
+import random # Para generar códigos de reserva
+import smtplib
+import traceback
+import uuid
+
+# 2. Third-Party Library Imports (Django REST Framework)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.permissions import BasePermission, SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
+
+
+
 from rest_framework.authtoken.models import Token
 
+# 3. Django Library Imports
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.shortcuts import redirect, get_object_or_404
-from django.db import transaction # <--- IMPORTANTE PARA CONFIRMAR RESERVA
-import uuid
-import json 
-import random # <--- PARA GENERAR CODIGOS DE RESERVA
+from django.shortcuts import redirect, get_object_or_404, render # get_object_or_404 importado una vez
+from django.db import transaction # IMPORTANTE PARA CONFIRMAR RESERVA
+from django.http import HttpResponse
+from django.db.models import Q
+from django.utils import timezone
+from django.core.mail import send_mail, EmailMessage # EmailMessage importado una vez
+from django.template.loader import render_to_string
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError
 
+<<<<<<< HEAD
 # IMPORTAMOS MODELOS Y SERIALIZERS
 
 from django.http import HttpResponse
@@ -37,8 +56,15 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 
+=======
+
+
+
+# 4. Local App Imports (Models and Serializers)
+>>>>>>> backup/revert-20251216
 from .models import (
-    RegistroUsuario, Promocion, Categoria, Servicio, Combo, ComboServicio,
+    RegistroUsuario, EmailVerificationToken, # Los modelos RegistroUsuario y Token de verificación
+    Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
     Carrito, ItemCarrito 
 )
@@ -50,7 +76,10 @@ from .serializers import (
     CarritoSerializer, ItemCarritoSerializer
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> backup/revert-20251216
 def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
     """
     Envía correo usando la configuración de Django. Intenta usar el backend
@@ -149,21 +178,35 @@ class LoginView(APIView):
     def post(self, request):
         usuario = request.data.get('usuario')
         clave = request.data.get('clave')
-        user = authenticate(username=usuario, password=clave)
         
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
-            cliente = RegistroUsuario.objects.filter(email=user.email).first()
-            cliente_id = cliente.id if cliente else None
+        # 1. Verificar si el usuario existe
+        try:
+            user_obj = User.objects.get(username=usuario)
+        except User.DoesNotExist:
+            return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            return Response({
-                'id': user.id,
-                'cliente_id': cliente_id,
-                'username': user.username,
-                'is_admin': user.is_staff,
-                'token': token.key
-            })
-        return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+        # 2. Verificar contraseña
+        if not user_obj.check_password(clave):
+            return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        # 3. Verificar si está activo (email verificado)
+        if not user_obj.is_active:
+            return Response({'message': 'El correo no ha sido verificado. Revisa tu bandeja de entrada.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 4. Login exitoso
+        token, created = Token.objects.get_or_create(user=user_obj)
+        cliente = RegistroUsuario.objects.filter(email=user_obj.email).first()
+        cliente_id = cliente.id if cliente else None
+
+        return Response({
+            'id': user_obj.id,
+            'cliente_id': cliente_id,
+            'username': user_obj.username,
+            'is_admin': user_obj.is_staff,
+            'token': token.key
+        }, status=status.HTTP_200_OK)
+
+
 
 
 
@@ -234,6 +277,7 @@ class RegistroUsuarioView(APIView):
             token = str(uuid.uuid4())
             EmailVerificationToken.objects.create(user=user, token=token)
 
+<<<<<<< HEAD
             # 9️⃣ Enviar correo de verificación
             link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
             try:
@@ -255,6 +299,35 @@ class RegistroUsuarioView(APIView):
             except Exception:
                 print("ERROR AL ENVIAR CORREO:")
                 traceback.print_exc()
+=======
+            
+            # 9️⃣ Enviar correo de verificación (HTML)
+            link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
+            
+            # Contexto para el template
+            context = {
+                'nombre': nombre,
+                'link_verificacion': link_verificacion
+            }
+            
+            # Renderizar el HTML
+            html_message = render_to_string('emails/verification_email.html', context)
+            plain_message = f"Hola {nombre}, verifica tu correo aquí: {link_verificacion}"
+
+            try:
+                send_mail(
+                    subject='🎈 Verifica tu correo - Burbujitas de Colores',
+                    message=plain_message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    html_message=html_message,
+                    fail_silently=False
+                )
+                print(f"✅ CORREO HTML ENVIADO A: {email}")
+            except Exception as e:
+                print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
+                # traceback.print_exc() # Opcional: descomentar si se quiere log completo
+>>>>>>> backup/revert-20251216
 
             # 1️⃣0️⃣ Respuesta exitosa
             return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'})
@@ -299,17 +372,23 @@ class SendTestEmailView(APIView):
             traceback.print_exc()
             return Response({'error': 'Fallo al enviar correo', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+<<<<<<< HEAD
 class VerificarEmailView(APIView):
     """
     Verifica el correo de un usuario usando un token enviado por email.
     URL: /verificar-email/?token=<token>
     """
+=======
+
+class VerificarEmailView(APIView):
+>>>>>>> backup/revert-20251216
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         token_value = request.query_params.get('token')
         if not token_value:
+<<<<<<< HEAD
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
@@ -328,6 +407,26 @@ class VerificarEmailView(APIView):
 
         # Renderizar página de éxito
         return render(request, 'fiesta/verificacion_exito.html')
+=======
+            return Response({'error': 'Falta el token'}, status=400)
+
+        # Buscar el token en la base de datos
+        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
+
+        # 1. Activar al usuario
+        user = token_obj.user
+        user.is_active = True
+        user.save()
+        
+        # 2. Generar el Token de sesión (para el Frontend)
+        auth_token, _ = Token.objects.get_or_create(user=user)
+        
+        # 3. Borrar el token de email ya usado
+        token_obj.delete()
+
+        # 4. RENDERIZAR PÁGINA DE ÉXITO (Redirección automática en el HTML)
+        return render(request, 'emails/verification_success.html')
+>>>>>>> backup/revert-20251216
 
 
 
