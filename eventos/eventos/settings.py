@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -93,9 +93,9 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia', 
+        'NAME': 'sandia1', 
         'USER': 'postgres', 
-        'PASSWORD':'12345',
+        'PASSWORD':'123456',
         'HOST': 'localhost', 
         'PORT': '5432', 
     }
@@ -154,3 +154,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True 
 # En desarrollo, esto permite peticiones desde cualquier origen (e.g., Live Server)
 CORS_ALLOW_ALL_ORIGINS = True
+
+

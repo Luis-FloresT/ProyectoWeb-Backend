@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone  # Para timezone.now()
+from datetime import timedelta
 import uuid
 
 # ==========================================
@@ -11,23 +13,51 @@ import uuid
 class RegistroUsuario(models.Model):
     """
     Cliente externo que realiza la reserva.
-    Separado del User de Django para no mezclar auth interna con datos de clientes.
+    Combina información del cliente y se relaciona con el User de Django.
     """
+    # Relación de la rama 'feature/modificación' (es la correcta para un perfil)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="perfil", null=True, blank=True)
+    
+    # Campos de cliente (De tu rama 'HEAD')
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
-    telefono = models.CharField(max_length=15, unique=True)
-    email = models.EmailField(unique=True)
-    contrasena = models.CharField(max_length=128)
+    email = models.EmailField(unique=True, null=True, blank=True) # <-- Reincorporado
+    contrasena = models.CharField(max_length=128, null=True, blank=True) # <-- Reincorporado (Aunque no se usa para login con User de Django)
+    telefono = models.CharField(max_length=20, unique=True)
+    activo = models.BooleanField(default=True) # <-- Reincorporado
     fecha_registro = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)
-    
+
     class Meta:
         verbose_name = "Registro de Usuario"
         verbose_name_plural = "Registros de Usuarios"
         db_table = 'registro_usuario'
 
     def __str__(self):
-        return f"{self.nombre} {self.apellido} | {self.email}"
+        # Usamos el string más descriptivo
+        return f"{self.nombre} {self.apellido} ({self.email or self.user.email if self.user else 'No asociado'})"
+
+
+# ---------------------------
+# MODELO DE VERIFICACIÓN DE EMAIL (De la rama 'feature/modificación')
+# ---------------------------
+
+class EmailVerificationToken(models.Model):
+    """Token de verificación de correo."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="verification_tokens")
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token}"
 
 
 # ==========================================

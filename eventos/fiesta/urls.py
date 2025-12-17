@@ -1,7 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    home, LoginView, RegistroUsuarioView, 
+    home, LoginView, RegistroUsuarioView,
+    
+    # Vistas de Email/Verificación añadidas
+    VerificarEmailView, 
+    SendTestEmailView,
+
     RegistroUsuarioViewSet, CategoriaViewSet, PromocionViewSet, 
     ServicioViewSet, ComboViewSet, ComboServicioViewSet, 
     HorarioDisponibleViewSet, ReservaViewSet, DetalleReservaViewSet, 
@@ -38,6 +43,11 @@ urlpatterns = [
     path('', home, name='home'),
     path('login/', LoginView.as_view(), name='login'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro_usuario'),
+
+    # --- ENDPOINTS DE EMAIL/VERIFICACIÓN ---
+    path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),
+    path('send-test-email/', SendTestEmailView.as_view(), name='send_test_email'), 
+    
     
     # --- ENDPOINTS MANUALES DEL CARRITO ---
     
