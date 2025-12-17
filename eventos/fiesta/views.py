@@ -1,22 +1,69 @@
+# 1. Standard Python Library Imports
+import json
+import random # Para generar códigos de reserva
+import smtplib
+import traceback
+import uuid
+
+# 2. Third-Party Library Imports (Django REST Framework)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.permissions import BasePermission, SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
+
+
+
 from rest_framework.authtoken.models import Token
 
+# 3. Django Library Imports
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.shortcuts import redirect, get_object_or_404
-from django.db import transaction # <--- IMPORTANTE PARA CONFIRMAR RESERVA
-import uuid
-import json 
-import random # <--- PARA GENERAR CODIGOS DE RESERVA
+from django.shortcuts import redirect, get_object_or_404, render # get_object_or_404 importado una vez
+from django.db import transaction # IMPORTANTE PARA CONFIRMAR RESERVA
+from django.http import HttpResponse
+from django.db.models import Q
+from django.utils import timezone
+from django.core.mail import send_mail, EmailMessage # EmailMessage importado una vez
+from django.template.loader import render_to_string
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError
+
 
 # IMPORTAMOS MODELOS Y SERIALIZERS
+
+from django.http import HttpResponse
+from rest_framework.authtoken.models import Token
+from django.db.models import Q
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from .models import EmailVerificationToken
+from django.core.mail import send_mail, EmailMessage
+from django.template.loader import render_to_string
+from django.shortcuts import render, get_object_or_404
+import uuid
+from django.conf import settings
+from django.core.mail import EmailMessage
+import smtplib
+import traceback
+import uuid
+from .models import RegistroUsuario, EmailVerificationToken
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError
+
+
+
+
+
+
+# 4. Local App Imports (Models and Serializers)
 from .models import (
-    RegistroUsuario, Promocion, Categoria, Servicio, Combo, ComboServicio,
+    RegistroUsuario, EmailVerificationToken, # Los modelos RegistroUsuario y Token de verificación
+    Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
     Carrito, ItemCarrito 
 )
@@ -28,9 +75,94 @@ from .serializers import (
     CarritoSerializer, ItemCarritoSerializer
 )
 
-# ==========================================
-# 0. VISTA INICIAL
-# ==========================================
+
+
+
+def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
+    """
+    Envía correo usando la configuración de Django. Intenta usar el backend
+    de Django (`EmailMessage.send()`), y si hay error hace un fallback a smtplib
+    usando la configuración del proveedor.
+    """
+    if proveedor == 'gmail':
+        config = settings.EMAIL_GMAIL
+    elif proveedor == 'outlook':
+        config = settings.EMAIL_OUTLOOK
+    elif proveedor == 'brevo':
+        config = None
+    else:
+        raise ValueError("Proveedor no soportado")
+
+    # Determinar remitente de forma segura: primero DEFAULT_FROM_EMAIL, luego USERNAME del config si existe
+    default_from = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+    if not default_from:
+        default_from = config.get('USERNAME') if config else None
+
+    email = EmailMessage(
+        subject=asunto,
+        body=mensaje,
+        from_email=default_from,
+        to=[destinatario],
+    )
+    email.content_subtype = "plain"
+
+    try:
+        # Si se solicita Brevo, preferimos API si está configurada, sino usamos SMTP relay
+        if proveedor == 'brevo':
+            api_key = getattr(settings, 'BREVO_API_KEY', '')
+            if api_key:
+                import requests
+                payload = {
+                    "sender": {"name": "No-Reply", "email": getattr(settings, 'DEFAULT_FROM_EMAIL', None)},
+                    "to": [{"email": destinatario}],
+                    "subject": asunto,
+                    "textContent": mensaje,
+                }
+                headers = {
+                    'api-key': api_key,
+                    'Content-Type': 'application/json'
+                }
+                resp = requests.post('https://api.sendinblue.com/v3/smtp/email', json=payload, headers=headers, timeout=10)
+                print(f"BREVO RESPONSE: {resp.status_code} {resp.text}") # DEBUG LOG
+                if resp.status_code >= 400:
+                    raise RuntimeError(f'Brevo API error: {resp.status_code} {resp.text}')
+                return
+            # si no hay API key, usar SMTP relay configurado en settings.EMAIL_BREVO
+            brevo_cfg = getattr(settings, 'EMAIL_BREVO', {})
+            if not brevo_cfg or not brevo_cfg.get('USERNAME'):
+                raise RuntimeError('Brevo no configurado: neither BREVO_API_KEY nor EMAIL_BREVO SMTP credentials are set')
+            # enviar por SMTP relay
+            import smtplib
+            with smtplib.SMTP(brevo_cfg['HOST'], brevo_cfg['PORT']) as server:
+                if brevo_cfg.get('USE_TLS'):
+                    server.starttls()
+                server.login(brevo_cfg['USERNAME'], brevo_cfg['PASSWORD'])
+                server.sendmail(brevo_cfg['USERNAME'], [destinatario], email.message().as_string())
+            return
+
+        # Usar el backend configurado en settings (recomendado)
+        email.send(fail_silently=False)
+    except Exception as e:
+        # Si el proveedor es Brevo no intentamos fallback SMTP con una config inexistente;
+        # re-levantar para que el llamante vea el error y lo loguee.
+        if proveedor == 'brevo':
+            raise
+        # Fallback directo con smtplib si el backend falla
+        try:
+            import smtplib
+            with smtplib.SMTP(config['HOST'], config['PORT']) as server:
+                if config.get('USE_TLS'):
+                    server.starttls()
+                server.login(config['USERNAME'], config['PASSWORD'])
+                server.sendmail(config['USERNAME'], [destinatario], email.message().as_string())
+        except Exception:
+            # Re-levantar para que el código llamante lo vea y lo pueda loguear
+            raise
+
+
+
+
+
 def home(request):
     return redirect('http://localhost:5173/login')
 
@@ -44,41 +176,232 @@ class LoginView(APIView):
     def post(self, request):
         usuario = request.data.get('usuario')
         clave = request.data.get('clave')
-        user = authenticate(username=usuario, password=clave)
         
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
-            cliente = RegistroUsuario.objects.filter(email=user.email).first()
-            cliente_id = cliente.id if cliente else None
+        # 1. Verificar si el usuario existe
+        try:
+            user_obj = User.objects.get(username=usuario)
+        except User.DoesNotExist:
+            return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            return Response({
-                'id': user.id,
-                'cliente_id': cliente_id,
-                'username': user.username,
-                'is_admin': user.is_staff,
-                'token': token.key
-            })
-        return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+        # 2. Verificar contraseña
+        if not user_obj.check_password(clave):
+            return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        # 3. Verificar si está activo (email verificado)
+        if not user_obj.is_active:
+            return Response({'message': 'El correo no ha sido verificado. Revisa tu bandeja de entrada.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 4. Login exitoso
+        token, created = Token.objects.get_or_create(user=user_obj)
+        cliente = RegistroUsuario.objects.filter(email=user_obj.email).first()
+        cliente_id = cliente.id if cliente else None
+
+        return Response({
+            'id': user_obj.id,
+            'cliente_id': cliente_id,
+            'username': user_obj.username,
+            'is_admin': user_obj.is_staff,
+            'token': token.key
+        }, status=status.HTTP_200_OK)
+
+
+
+
 
 class RegistroUsuarioView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
+    def post(self,request):
+         try:
+            nombre = request.data.get('nombre', '').strip()
+            email = request.data.get('email', '').strip()
+            clave = request.data.get('clave', '').strip()
+            apellido = request.data.get('apellido', '').strip()
+            telefono = request.data.get('telefono', '').strip()
+            
+            # 1️⃣, 2️⃣, 3️⃣ Validaciones de campos obligatorios e email
+            if not nombre or not email or not clave:
+                return Response(
+                    {'message': 'Campos obligatorios faltantes.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                validate_email(email)
+            except ValidationError:
+                return Response({'message': 'Email inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 4️⃣ Validar contraseña
+            if len(clave) < 6:
+                return Response({'message': 'La contraseña debe tener al menos 6 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 5️⃣ Verificar si usuario o email existen
+            if User.objects.filter(username=nombre).exists():
+                return Response({'message': 'Ese usuario ya existe.'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email=email).exists():
+                return Response({'message': 'Ese correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 6️⃣ Crear usuario inactivo
+            # Si hay un signal (señal) configurado, esta acción creará automáticamente un RegistroUsuario
+            user = User.objects.create_user(username=nombre, email=email, password=clave)
+            user.is_active = False
+            user.save()
+            
+            # =========================================================================
+            # 7️⃣ CORRECCIÓN DE INTEGRITYERROR: 
+            #    Intentar obtener y actualizar, si falla, crear.
+            # =========================================================================
+            try:
+                # Intentar obtener el RegistroUsuario creado por el signal automático
+                registro = RegistroUsuario.objects.get(user=user)
+                
+                # Actualizar los campos que el signal podría no haber llenado
+                registro.nombre = nombre # Sincroniza el nombre
+                registro.apellido = apellido
+                registro.telefono = telefono
+                registro.save()
+            
+            except RegistroUsuario.DoesNotExist:
+                # Si no se creó automáticamente, se crea manualmente
+                registro = RegistroUsuario.objects.create(
+                    user=user,
+                    nombre=nombre,
+                    apellido=apellido,
+                    telefono=telefono
+                )
+            # =========================================================================
+
+            # 8️⃣ Crear token de verificación
+            token = str(uuid.uuid4())
+            EmailVerificationToken.objects.create(user=user, token=token)
+
+
+            # 9️⃣ Enviar correo de verificación (HTML)
+            link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
+            
+            # Contexto para el template
+            context = {
+                'nombre': nombre,
+                'link_verificacion': link_verificacion
+            }
+            
+            # Renderizar el HTML
+            html_message = render_to_string('emails/verification_email.html', context)
+            plain_message = f"Hola {nombre}, verifica tu correo aquí: {link_verificacion}"
+
+            try:
+                send_mail(
+                    subject='🎈 Verifica tu correo - Burbujitas de Colores',
+                    message=plain_message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    html_message=html_message,
+                    fail_silently=False
+                )
+                print(f"✅ CORREO HTML ENVIADO A: {email}")
+            except Exception as e:
+                print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
+                # traceback.print_exc() # Opcional: descomentar si se quiere log completo
+
+
+            # 1️⃣0️⃣ Respuesta exitosa
+            return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'})
+
+         except IntegrityError as e:
+            # Captura errores de unicidad (como duplicados de email o teléfono si estuvieran configurados)
+            print("ERROR DE BASE DE DATOS:")
+            traceback.print_exc()
+            return Response({'message': 'Error en base de datos. Usuario o correo ya registrado.', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+         except Exception as e:
+            print("ERROR INESPERADO EN REGISTRO USUARIO:")
+            traceback.print_exc()
+            return Response({'message': 'Error inesperado', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class SendTestEmailView(APIView):
+    """Enviar un correo de prueba usando el backend configurado (SendGrid/SMTP/Console)."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
-        nombre = request.data.get('nombre')
-        email = request.data.get('email')
-        clave = request.data.get('clave')
+        to_email = request.data.get('email') or request.query_params.get('email')
+        if not to_email:
+            return Response({'error': 'El campo "email" es requerido (body JSON o query param).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        subject = request.data.get('subject', 'Correo de prueba Django')
+        body = request.data.get('body', 'Este es un correo de prueba enviado desde la API de prueba.')
+
+        try:
+            # Usar el backend configurado en settings (SMTP Brevo)
+            email = EmailMessage(
+                subject=subject, 
+                body=body, 
+                to=[to_email], 
+                from_email=settings.DEFAULT_FROM_EMAIL
+            )
+            email.content_subtype = 'plain'
+            email.send(fail_silently=False)
+            
+            return Response({'message': 'Correo enviado via SMTP.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': 'Fallo al enviar correo', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerificarEmailView(APIView):
+    """
+    Verifica el correo de un usuario usando un token enviado por email.
+    URL: /verificar-email/?token=<token>
+    """
+
+
+class VerificarEmailView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token_value = request.query_params.get('token')
+        if not token_value:
+
+            return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Buscar el token
+        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
+
+        # Revisar si ha expirado
+        if token_obj.is_expired():
+            return Response({'error': 'El token ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Marcar usuario como activo/verificado (opcional)
+        token_obj.user.is_active = True
+        token_obj.user.save()
+
+        # Opcional: eliminar el token para que no pueda reutilizarse
+        token_obj.delete()
+
+        # Renderizar página de éxito
+        return render(request, 'emails/verification_success.html')
+        return Response({'error': 'Falta el token'}, status=400)
+
+        # Buscar el token en la base de datos
+        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
+
+        # 1. Activar al usuario
+        user = token_obj.user
+        user.is_active = True
+        user.save()
         
-        if not nombre or not email or not clave:
-            return Response({'message': 'Campos faltantes.'}, status=400)
+        # 2. Generar el Token de sesión (para el Frontend)
+        auth_token, _ = Token.objects.get_or_create(user=user)
         
-        if User.objects.filter(username=nombre).exists():
-            return Response({'message': 'Usuario ya existe'}, status=400)
-        
-        # Solo creamos el User, el signal se encarga de crear el RegistroUsuario automáticamente
-        User.objects.create_user(username=nombre, email=email, password=clave)
-        
-        return Response({'message': 'Usuario registrado correctamente'}, status=201)
+        # 3. Borrar el token de email ya usado
+        token_obj.delete()
+
+        # 4. RENDERIZAR PÁGINA DE ÉXITO (Redirección automática en el HTML)
+        return render(request, 'emails/verification_success.html')
+
+
+
 
 class RegistroUsuarioViewSet(viewsets.ModelViewSet):
     queryset = RegistroUsuario.objects.all()
@@ -157,6 +480,7 @@ class PagoViewSet(viewsets.ModelViewSet):
 class CancelacionViewSet(viewsets.ModelViewSet):
     queryset = Cancelacion.objects.all()
     serializer_class = CancelacionSerializer
+
     permission_classes = [SoloUsuariosAutenticados]
 
 # ==========================================
