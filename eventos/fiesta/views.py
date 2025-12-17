@@ -32,7 +32,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
 
-<<<<<<< HEAD
+
 # IMPORTAMOS MODELOS Y SERIALIZERS
 
 from django.http import HttpResponse
@@ -56,12 +56,11 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 
-=======
+
 
 
 
 # 4. Local App Imports (Models and Serializers)
->>>>>>> backup/revert-20251216
 from .models import (
     RegistroUsuario, EmailVerificationToken, # Los modelos RegistroUsuario y Token de verificación
     Promocion, Categoria, Servicio, Combo, ComboServicio,
@@ -76,10 +75,9 @@ from .serializers import (
     CarritoSerializer, ItemCarritoSerializer
 )
 
-<<<<<<< HEAD
 
-=======
->>>>>>> backup/revert-20251216
+
+
 def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
     """
     Envía correo usando la configuración de Django. Intenta usar el backend
@@ -215,7 +213,7 @@ class RegistroUsuarioView(APIView):
     permission_classes = [AllowAny]
 
     def post(self,request):
-        try:
+         try:
             nombre = request.data.get('nombre', '').strip()
             email = request.data.get('email', '').strip()
             clave = request.data.get('clave', '').strip()
@@ -277,30 +275,7 @@ class RegistroUsuarioView(APIView):
             token = str(uuid.uuid4())
             EmailVerificationToken.objects.create(user=user, token=token)
 
-<<<<<<< HEAD
-            # 9️⃣ Enviar correo de verificación
-            link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
-            try:
-                # Renderizar template HTML
-                html_message = render_to_string('fiesta/email_verificacion.html', {
-                    'nombre': nombre,
-                    'link_verificacion': link_verificacion
-                })
-                
-                # Usa el backend configurado (SMTP Brevo)
-                email_msg = EmailMessage(
-                    subject='🎈 Verifica tu correo - Burbujitas de Colores',
-                    body=html_message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[email]
-                )
-                email_msg.content_subtype = 'html' # Enviar como HTML
-                email_msg.send(fail_silently=False)
-            except Exception:
-                print("ERROR AL ENVIAR CORREO:")
-                traceback.print_exc()
-=======
-            
+
             # 9️⃣ Enviar correo de verificación (HTML)
             link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
             
@@ -327,18 +302,18 @@ class RegistroUsuarioView(APIView):
             except Exception as e:
                 print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
                 # traceback.print_exc() # Opcional: descomentar si se quiere log completo
->>>>>>> backup/revert-20251216
+
 
             # 1️⃣0️⃣ Respuesta exitosa
             return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'})
 
-        except IntegrityError as e:
+         except IntegrityError as e:
             # Captura errores de unicidad (como duplicados de email o teléfono si estuvieran configurados)
             print("ERROR DE BASE DE DATOS:")
             traceback.print_exc()
             return Response({'message': 'Error en base de datos. Usuario o correo ya registrado.', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Exception as e:
+         except Exception as e:
             print("ERROR INESPERADO EN REGISTRO USUARIO:")
             traceback.print_exc()
             return Response({'message': 'Error inesperado', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -372,23 +347,22 @@ class SendTestEmailView(APIView):
             traceback.print_exc()
             return Response({'error': 'Fallo al enviar correo', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-<<<<<<< HEAD
+
 class VerificarEmailView(APIView):
     """
     Verifica el correo de un usuario usando un token enviado por email.
     URL: /verificar-email/?token=<token>
     """
-=======
+
 
 class VerificarEmailView(APIView):
->>>>>>> backup/revert-20251216
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         token_value = request.query_params.get('token')
         if not token_value:
-<<<<<<< HEAD
+
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
@@ -406,9 +380,8 @@ class VerificarEmailView(APIView):
         token_obj.delete()
 
         # Renderizar página de éxito
-        return render(request, 'fiesta/verificacion_exito.html')
-=======
-            return Response({'error': 'Falta el token'}, status=400)
+        return render(request, 'emails/verification_success.html')
+        return Response({'error': 'Falta el token'}, status=400)
 
         # Buscar el token en la base de datos
         token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
@@ -426,7 +399,7 @@ class VerificarEmailView(APIView):
 
         # 4. RENDERIZAR PÁGINA DE ÉXITO (Redirección automática en el HTML)
         return render(request, 'emails/verification_success.html')
->>>>>>> backup/revert-20251216
+
 
 
 
@@ -670,4 +643,3 @@ class ItemCarritoViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return ItemCarrito.objects.filter(carrito__cliente__email=self.request.user.email)
         return ItemCarrito.objects.none()
-
