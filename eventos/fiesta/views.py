@@ -33,27 +33,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 
-# IMPORTAMOS MODELOS Y SERIALIZERS
-
-from django.http import HttpResponse
-from rest_framework.authtoken.models import Token
-from django.db.models import Q
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
-from .models import EmailVerificationToken
-from django.core.mail import send_mail, EmailMessage
-from django.template.loader import render_to_string
-from django.shortcuts import render, get_object_or_404
-import uuid
-from django.conf import settings
-from django.core.mail import EmailMessage
-import smtplib
-import traceback
-import uuid
-from .models import RegistroUsuario, EmailVerificationToken
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
-from django.db import IntegrityError
+# 4. Local App Imports (Models and Serializers)
 
 
 
@@ -62,7 +42,7 @@ from django.db import IntegrityError
 
 # 4. Local App Imports (Models and Serializers)
 from .models import (
-    RegistroUsuario, EmailVerificationToken, # Los modelos RegistroUsuario y Token de verificación
+    RegistroUsuario, EmailVerificationToken,
     Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
     Carrito, ItemCarrito 
@@ -187,10 +167,10 @@ class LoginView(APIView):
         if not user_obj.check_password(clave):
             return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
             
-        # 3. Verificar si está activo (email verificado)
+        # 3. Verificar que el correo ha sido verificado
         if not user_obj.is_active:
-            return Response({'message': 'El correo no ha sido verificado. Revisa tu bandeja de entrada.'}, status=status.HTTP_403_FORBIDDEN)
-
+            return Response({'message': 'Debes verificar tu correo electrónico antes de poder iniciar sesión.'}, status=status.HTTP_403_FORBIDDEN)
+            
         # 4. Login exitoso
         token, created = Token.objects.get_or_create(user=user_obj)
         cliente = RegistroUsuario.objects.filter(email=user_obj.email).first()
@@ -241,33 +221,32 @@ class RegistroUsuarioView(APIView):
             if User.objects.filter(email=email).exists():
                 return Response({'message': 'Ese correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 6️⃣ Crear usuario inactivo
-            # Si hay un signal (señal) configurado, esta acción creará automáticamente un RegistroUsuario
+            # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
             user = User.objects.create_user(username=nombre, email=email, password=clave)
-            user.is_active = False
+            user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
             user.save()
             
             # =========================================================================
-            # 7️⃣ CORRECCIÓN DE INTEGRITYERROR: 
-            #    Intentar obtener y actualizar, si falla, crear.
+            # 7️⃣ Obtener o actualizar RegistroUsuario (creado automáticamente por signal)
             # =========================================================================
             try:
-                # Intentar obtener el RegistroUsuario creado por el signal automático
-                registro = RegistroUsuario.objects.get(user=user)
+                # Intentar obtener el RegistroUsuario creado por el signal automático (buscar por email)
+                registro = RegistroUsuario.objects.get(email=email)
                 
                 # Actualizar los campos que el signal podría no haber llenado
-                registro.nombre = nombre # Sincroniza el nombre
-                registro.apellido = apellido
-                registro.telefono = telefono
+                registro.nombre = nombre
+                registro.apellido = apellido if apellido else ''
+                registro.telefono = telefono if telefono else ''
                 registro.save()
             
             except RegistroUsuario.DoesNotExist:
-                # Si no se creó automáticamente, se crea manualmente
+                # Si no se creó automáticamente (no hay signal), crear manualmente
                 registro = RegistroUsuario.objects.create(
-                    user=user,
                     nombre=nombre,
-                    apellido=apellido,
-                    telefono=telefono
+                    apellido=apellido if apellido else '',
+                    email=email,
+                    telefono=telefono if telefono else '',
+                    contrasena='managed_by_django'  # La contraseña se maneja en User
                 )
             # =========================================================================
 
@@ -353,16 +332,12 @@ class VerificarEmailView(APIView):
     Verifica el correo de un usuario usando un token enviado por email.
     URL: /verificar-email/?token=<token>
     """
-
-
-class VerificarEmailView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         token_value = request.query_params.get('token')
         if not token_value:
-
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
@@ -372,32 +347,14 @@ class VerificarEmailView(APIView):
         if token_obj.is_expired():
             return Response({'error': 'El token ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Marcar usuario como activo/verificado (opcional)
+        # Marcar usuario como verificado
         token_obj.user.is_active = True
         token_obj.user.save()
 
-        # Opcional: eliminar el token para que no pueda reutilizarse
+        # Eliminar el token para que no pueda reutilizarse
         token_obj.delete()
 
         # Renderizar página de éxito
-        return render(request, 'emails/verification_success.html')
-        return Response({'error': 'Falta el token'}, status=400)
-
-        # Buscar el token en la base de datos
-        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
-
-        # 1. Activar al usuario
-        user = token_obj.user
-        user.is_active = True
-        user.save()
-        
-        # 2. Generar el Token de sesión (para el Frontend)
-        auth_token, _ = Token.objects.get_or_create(user=user)
-        
-        # 3. Borrar el token de email ya usado
-        token_obj.delete()
-
-        # 4. RENDERIZAR PÁGINA DE ÉXITO (Redirección automática en el HTML)
         return render(request, 'emails/verification_success.html')
 
 

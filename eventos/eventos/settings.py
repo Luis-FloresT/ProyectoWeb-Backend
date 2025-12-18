@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'fiesta',
     'rest_framework.authtoken',
+    'anymail',  # Para el envío de correos con Brevo
 ]
 
 REST_FRAMEWORK = {
@@ -72,7 +73,7 @@ ROOT_URLCONF = 'eventos.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'fiesta' / 'templates'],  # Directorio de templates
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -154,3 +155,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True 
 # En desarrollo, esto permite peticiones desde cualquier origen (e.g., Live Server)
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ==========================================
+# CONFIGURACIÓN DE CORREO ELECTRÓNICO (BREVO)
+# ==========================================
+import os
+
+# API Key de Brevo (usar variable de entorno; nunca commitear la clave real)
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
+
+# Backend de Anymail para Brevo (si no hay API key, usa consola en desarrollo)
+if BREVO_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    ANYMAIL = {
+        "BREVO_API_KEY": BREVO_API_KEY,
+    }
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Configuración del remitente
+DEFAULT_FROM_EMAIL = 'Burbujitas de colores <pepet2799@gmail.com>'
+SERVER_EMAIL = 'pepet2799@gmail.com'

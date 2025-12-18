@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
+from datetime import timedelta
 import uuid
 
 # ==========================================
@@ -28,6 +30,33 @@ class RegistroUsuario(models.Model):
 
     def __str__(self):
         return f"{self.nombre} {self.apellido} | {self.email}"
+
+
+class EmailVerificationToken(models.Model):
+    """
+    Token para verificación de correo electrónico.
+    Se crea al registrarse y expira en 24 horas.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "Token de Verificación de Email"
+        verbose_name_plural = "Tokens de Verificación de Email"
+        db_table = 'email_verification_token'
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"Token for {self.user.username} - {self.token[:10]}..."
 
 
 # ==========================================
