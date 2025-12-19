@@ -10,21 +10,38 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
+import environ
 from pathlib import Path
-import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# 1. DEFINIR BASE_DIR PRIMERO (Fundamental)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# 2. INICIALIZAR ENVIRON
+env = environ.Env()
+# Leer el archivo .env ubicado DOS NIVELES arriba de BASE_DIR
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+env_path = os.path.join(BASE_DIR.parent.parent, '.env')
+environ.Env.read_env(env_path)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t)5l!wsq0oapv4znr%kg!o+v!3-k34t$+(^lws^xyqrl+8(2!*'
+# 3. AJUSTES DE SEGURIDAD (Usa el .env para la SECRET_KEY)
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-t)5l!wsq0oapv4znr%kg!o+v!3-k34t$+(^lws^xyqrl+8(2!*')
+DEBUG = env.bool('DEBUG', default=True)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# 4. CONFIGURACIÓN DE BREVO (ANYMAIL)
+# Leemos la API Key desde el entorno; si no existe, usa un string vacío
+BREVO_API_KEY = env('BREVO_API_KEY', default='')
+
+EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+
+ANYMAIL = {
+    "BREVO_API_KEY": BREVO_API_KEY,
+}
+
+# 5. CONFIGURACIÓN DEL REMITENTE
+# Leemos desde el .env o usamos valores por defecto
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Burbujitas de colores <pepet2799@gmail.com>')
+SERVER_EMAIL = env('SERVER_EMAIL', default='pepet2799@gmail.com')
+
 
 ALLOWED_HOSTS = []
 
@@ -95,7 +112,7 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia1', 
+        'NAME': 'sandia2', 
         'USER': 'postgres', 
         'PASSWORD':'123456',
         'HOST': 'localhost', 
@@ -159,4 +176,5 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 
 
+# configuracion de correo
 
