@@ -10,20 +10,41 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
+import environ
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# 1. DEFINIR BASE_DIR PRIMERO (Fundamental)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# 2. INICIALIZAR ENVIRON
+env = environ.Env()
+# Leer el archivo .env ubicado DOS NIVELES arriba de BASE_DIR
+env_path = os.path.join(BASE_DIR.parent.parent, '.env')
+environ.Env.read_env(env_path)
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# 3. AJUSTES DE SEGURIDAD (Usa el .env para la SECRET_KEY)
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-t)5l!wsq0oapv4znr%kg!o+v!3-k34t$+(^lws^xyqrl+8(2!*')
+DEBUG = env.bool('DEBUG', default=True)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t)5l!wsq0oapv4znr%kg!o+v!3-k34t$+(^lws^xyqrl+8(2!*'
+# 4. CONFIGURACIÓN DE BREVO (ANYMAIL)
+# Leemos la API Key desde el entorno; si no existe, usa un string vacío
+BREVO_API_KEY = env('BREVO_API_KEY', default='')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Backend de Anymail para Brevo (si no hay API key, usa consola en desarrollo)
+if BREVO_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    ANYMAIL = {
+        "BREVO_API_KEY": BREVO_API_KEY,
+    }
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# 5. CONFIGURACIÓN DEL REMITENTE
+# Leemos desde el .env o usamos valores por defecto
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Burbujitas de colores <pepet2799@gmail.com>')
+SERVER_EMAIL = env('SERVER_EMAIL', default='pepet2799@gmail.com')
+
 
 ALLOWED_HOSTS = []
 
@@ -94,7 +115,7 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia', 
+    'NAME': 'sandia', 
         'USER': 'postgres', 
         'PASSWORD':'12345',
         'HOST': 'localhost', 
@@ -156,23 +177,4 @@ CORS_ALLOW_ALL_ORIGINS = True
 # En desarrollo, esto permite peticiones desde cualquier origen (e.g., Live Server)
 CORS_ALLOW_ALL_ORIGINS = True
 
-# ==========================================
-# CONFIGURACIÓN DE CORREO ELECTRÓNICO (BREVO)
-# ==========================================
-import os
-
-# API Key de Brevo (usar variable de entorno; nunca commitear la clave real)
-BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')
-
-# Backend de Anymail para Brevo (si no hay API key, usa consola en desarrollo)
-if BREVO_API_KEY:
-    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
-    ANYMAIL = {
-        "BREVO_API_KEY": BREVO_API_KEY,
-    }
-else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
-# Configuración del remitente
-DEFAULT_FROM_EMAIL = 'Burbujitas de colores <pepet2799@gmail.com>'
-SERVER_EMAIL = 'pepet2799@gmail.com'
+# Nota: configuración de correo ya se maneja arriba mediante environ y BREVO_API_KEY.

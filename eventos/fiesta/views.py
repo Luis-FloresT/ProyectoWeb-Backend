@@ -92,8 +92,19 @@ def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
             api_key = getattr(settings, 'BREVO_API_KEY', '')
             if api_key:
                 import requests
+                import re
+                
+                # Extraer solo el email del formato "Nombre <email@example.com>"
+                from_email_raw = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+                email_match = re.search(r'<(.+?)>', from_email_raw)
+                sender_email = email_match.group(1) if email_match else from_email_raw
+                
+                # Extraer el nombre si existe
+                name_match = re.match(r'^(.+?)\s*<', from_email_raw)
+                sender_name = name_match.group(1).strip() if name_match else "Burbujitas de Colores"
+                
                 payload = {
-                    "sender": {"name": "No-Reply", "email": getattr(settings, 'DEFAULT_FROM_EMAIL', None)},
+                    "sender": {"name": sender_name, "email": sender_email},
                     "to": [{"email": destinatario}],
                     "subject": asunto,
                     "textContent": mensaje,
@@ -192,14 +203,14 @@ class RegistroUsuarioView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def post(self,request):
-         try:
+    def post(self, request):
+        try:
             nombre = request.data.get('nombre', '').strip()
             email = request.data.get('email', '').strip()
             clave = request.data.get('clave', '').strip()
             apellido = request.data.get('apellido', '').strip()
             telefono = request.data.get('telefono', '').strip()
-            
+
             # 1️⃣, 2️⃣, 3️⃣ Validaciones de campos obligatorios e email
             if not nombre or not email or not clave:
                 return Response(
@@ -215,87 +226,96 @@ class RegistroUsuarioView(APIView):
             if len(clave) < 6:
                 return Response({'message': 'La contraseña debe tener al menos 6 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 5️⃣ Verificar si usuario o email existen
+            # 5️⃣ Verificar si usuario, email o teléfono ya existen
             if User.objects.filter(username=nombre).exists():
                 return Response({'message': 'Ese usuario ya existe.'}, status=status.HTTP_400_BAD_REQUEST)
             if User.objects.filter(email=email).exists():
                 return Response({'message': 'Ese correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
+            if RegistroUsuario.objects.filter(telefono=telefono).exists():
+                return Response({'message': 'Ese teléfono ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
-            user = User.objects.create_user(username=nombre, email=email, password=clave)
-            user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
-            user.save()
-            
-            # =========================================================================
-            # 7️⃣ Obtener o actualizar RegistroUsuario (creado automáticamente por signal)
-            # =========================================================================
-            try:
-                # Intentar obtener el RegistroUsuario creado por el signal automático (buscar por email)
-                registro = RegistroUsuario.objects.get(email=email)
+            # --- INICIO DE TRANSACCIÓN ATÓMICA ---
+            with transaction.atomic():
+                # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
+                user = User.objects.create_user(username=nombre, email=email, password=clave)
+                user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
+                user.save()
+
+                # =========================================================================
+                # 7️⃣ Obtener o actualizar RegistroUsuario (creado automáticamente por signal)
+                # =========================================================================
+                try:
+                    # Intentar obtener el RegistroUsuario creado por el signal automático (buscar por email)
+                    registro = RegistroUsuario.objects.get(email=email)
+                    
+                    # Actualizar los campos que el signal podría no haber llenado
+                    registro.nombre = nombre
+                    registro.apellido = apellido if apellido else ''
+                    registro.telefono = telefono if telefono else ''
+                    registro.save()
                 
-                # Actualizar los campos que el signal podría no haber llenado
-                registro.nombre = nombre
-                registro.apellido = apellido if apellido else ''
-                registro.telefono = telefono if telefono else ''
-                registro.save()
-            
-            except RegistroUsuario.DoesNotExist:
-                # Si no se creó automáticamente (no hay signal), crear manualmente
-                registro = RegistroUsuario.objects.create(
-                    nombre=nombre,
-                    apellido=apellido if apellido else '',
-                    email=email,
-                    telefono=telefono if telefono else '',
-                    contrasena='managed_by_django'  # La contraseña se maneja en User
-                )
-            # =========================================================================
+                except RegistroUsuario.DoesNotExist:
+                    # Si no se creó automáticamente (no hay signal), crear manualmente
+                    registro = RegistroUsuario.objects.create(
+                        nombre=nombre,
+                        apellido=apellido if apellido else '',
+                        email=email,
+                        telefono=telefono if telefono else '',
+                        contrasena='managed_by_django'  # La contraseña se maneja en User
+                    )
 
-            # 8️⃣ Crear token de verificación
-            token = str(uuid.uuid4())
-            EmailVerificationToken.objects.create(user=user, token=token)
+                # 7️⃣ Sincronizar con RegistroUsuario (Perfil)
+                # (Nota) No usamos FK a User en RegistroUsuario; sincronizamos por email.
 
+                # 8️⃣ Crear token de verificación
+                token = str(uuid.uuid4())
+                EmailVerificationToken.objects.create(user=user, token=token)
 
-            # 9️⃣ Enviar correo de verificación (HTML)
-            link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
-            
-            # Contexto para el template
-            context = {
-                'nombre': nombre,
-                'link_verificacion': link_verificacion
-            }
-            
-            # Renderizar el HTML
-            html_message = render_to_string('emails/verification_email.html', context)
-            plain_message = f"Hola {nombre}, verifica tu correo aquí: {link_verificacion}"
+                # 9️⃣ Preparar correo de verificación
+                link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
+                context = {
+                    'nombre': nombre,
+                    'link_verificacion': link_verificacion
+                }
+                html_message = render_to_string('emails/verification_email.html', context)
+                plain_message = f"Hola {nombre}, verifica tu correo aquí: {link_verificacion}"
 
-            try:
-                send_mail(
-                    subject='🎈 Verifica tu correo - Burbujitas de Colores',
-                    message=plain_message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[email],
-                    html_message=html_message,
-                    fail_silently=False
-                )
-                print(f"✅ CORREO HTML ENVIADO A: {email}")
-            except Exception as e:
-                print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
-                # traceback.print_exc() # Opcional: descomentar si se quiere log completo
+                # Extraer solo el email del DEFAULT_FROM_EMAIL
+                import re
+                from_email_raw = settings.DEFAULT_FROM_EMAIL
+                email_match = re.search(r'<(.+?)>', from_email_raw)
+                sender_email = email_match.group(1) if email_match else from_email_raw
 
+                try:
+                    send_mail(
+                        subject='🎈 Verifica tu correo - Burbujitas de Colores',
+                        message=plain_message,
+                        from_email=sender_email,
+                        recipient_list=[email],
+                        html_message=html_message,
+                        fail_silently=False
+                    )
+                    print(f"✅ CORREO HTML ENVIADO A: {email}")
+                except Exception as e:
+                    # Loggeamos el error pero no revertimos la creación del usuario si el correo falla
+                    # OJO: Si queremos que el registro falle si el correo no se envía, 
+                    # deberíamos mover este bloque fuera o lanzar una excepción aquí.
+                    # Por ahora lo dejamos como un log para no frustrar al usuario si el servidor de correo falla.
+                    print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
 
-            # 1️⃣0️⃣ Respuesta exitosa
-            return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'})
+            # --- FIN DE TRANSACCIÓN ATÓMICA ---
 
-         except IntegrityError as e:
-            # Captura errores de unicidad (como duplicados de email o teléfono si estuvieran configurados)
-            print("ERROR DE BASE DE DATOS:")
+            return Response({'message': 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.'}, status=status.HTTP_201_CREATED)
+
+        except IntegrityError as e:
+            print("ERROR DE INTEGRIDAD EN REGISTRO:")
             traceback.print_exc()
-            return Response({'message': 'Error en base de datos. Usuario o correo ya registrado.', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Error de integridad en los datos. Posible duplicado.', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-         except Exception as e:
-            print("ERROR INESPERADO EN REGISTRO USUARIO:")
+        except Exception as e:
+            print("ERROR INESPERADO EN REGISTRO:")
             traceback.print_exc()
-            return Response({'message': 'Error inesperado', 'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Error inesperado durante el registro.', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SendTestEmailView(APIView):
     """Enviar un correo de prueba usando el backend configurado (SendGrid/SMTP/Console)."""
