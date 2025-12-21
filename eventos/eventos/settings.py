@@ -19,13 +19,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 2. INICIALIZAR ENVIRON
 env = environ.Env()
-# Leer el archivo .env ubicado DOS NIVELES arriba de BASE_DIR
-env_path = os.path.join(BASE_DIR.parent.parent, '.env')
+# Leer el archivo .env ubicado UN NIVEL arriba de BASE_DIR (en ProyectoWeb-Backend)
+env_path = os.path.join(BASE_DIR.parent, '.env')
 environ.Env.read_env(env_path)
 
 # 3. AJUSTES DE SEGURIDAD (Usa el .env para la SECRET_KEY)
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-t)5l!wsq0oapv4znr%kg!o+v!3-k34t$+(^lws^xyqrl+8(2!*')
-DEBUG = env.bool('DEBUG', default=True)
+SECRET_KEY = env('SECRET_KEY')
+DEBUG = env.bool('DEBUG', default=False)
 
 # 4. CONFIGURACIÓN DE BREVO (ANYMAIL)
 # Leemos la API Key desde el entorno; si no existe, usa un string vacío
@@ -41,9 +41,9 @@ else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # 5. CONFIGURACIÓN DEL REMITENTE
-# Leemos desde el .env o usamos valores por defecto
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='Burbujitas de colores <pepet2799@gmail.com>')
-SERVER_EMAIL = env('SERVER_EMAIL', default='pepet2799@gmail.com')
+# Leemos desde el .env
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
+SERVER_EMAIL = env('SERVER_EMAIL')
 
 
 ALLOWED_HOSTS = []
@@ -115,7 +115,7 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-    'NAME': 'sandia', 
+        'NAME': 'sandia', 
         'USER': 'postgres', 
         'PASSWORD':'12345',
         'HOST': 'localhost', 

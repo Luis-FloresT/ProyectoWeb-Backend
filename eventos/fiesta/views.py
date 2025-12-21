@@ -445,6 +445,114 @@ class ReservaViewSet(viewsets.ModelViewSet):
     serializer_class = ReservaSerializer
     permission_classes = [SoloUsuariosAutenticados]
 
+    def create(self, request, *args, **kwargs):
+        """
+        Crear reserva requiriendo un horario disponible definido por el admin.
+        - Valida cliente autenticado
+        - Valida horario (existencia, disponible y capacidad)
+        - Ajusta fecha_evento según el horario
+        - Calcula subtotal e impuestos si falta
+        - Crea DetalleReserva para servicio/combo
+        """
+        try:
+            data = request.data.copy()
+
+            # Cliente desde el usuario autenticado
+            cliente = RegistroUsuario.objects.filter(email=request.user.email).first()
+            if not cliente:
+                return Response({'error': 'No se encontró tu perfil de cliente'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Código de reserva si no existe
+            if not data.get('codigo_reserva'):
+                data['codigo_reserva'] = f"RES-{random.randint(1000,9999)}-{uuid.uuid4().hex[:4].upper()}"
+
+            # Horario requerido
+            horario_id = data.get('horario')
+            if not horario_id:
+                return Response({'error': 'Debes seleccionar un horario disponible'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                horario = HorarioDisponible.objects.get(id=horario_id, disponible=True)
+            except HorarioDisponible.DoesNotExist:
+                return Response({'error': 'El horario seleccionado no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Capacidad del horario
+            reservas_en_horario = Reserva.objects.filter(
+                horario=horario,
+                estado__in=['CONFIRMADA', 'PENDIENTE']
+            ).count()
+            if reservas_en_horario >= horario.capacidad_reserva:
+                return Response({'error': 'Este horario ya está lleno. Por favor selecciona otro'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Alinear fecha_evento y hora_inicio con horario
+            data['fecha_evento'] = horario.fecha
+            data['fecha_inicio'] = horario.hora_inicio
+
+            # Totales
+            total = float(data.get('total', 0))
+            if total > 0 and not data.get('subtotal'):
+                subtotal = total / 1.12
+                impuestos = total - subtotal
+                data['subtotal'] = round(subtotal, 2)
+                data['impuestos'] = round(impuestos, 2)
+            elif not data.get('subtotal'):
+                data['subtotal'] = 0
+                data['impuestos'] = 0
+
+            # Extraer posibles ítems
+            servicio_id = data.pop('servicio', None)
+            combo_id = data.pop('combo', None)
+            promocion_id = data.pop('promocion', None)
+
+            # Cliente correcto en la reserva
+            data['cliente'] = cliente.id
+
+            # Crear reserva + detalle en transacción
+            with transaction.atomic():
+                serializer = self.get_serializer(data=data)
+                if not serializer.is_valid():
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+                reserva = serializer.save()
+
+                # Detalle
+                if servicio_id:
+                    servicio = Servicio.objects.get(id=servicio_id)
+                    DetalleReserva.objects.create(
+                        reserva=reserva,
+                        tipo='S',
+                        servicio=servicio,
+                        cantidad=1,
+                        precio_unitario=servicio.precio_base,
+                        subtotal=servicio.precio_base
+                    )
+                elif combo_id:
+                    combo = Combo.objects.get(id=combo_id)
+                    DetalleReserva.objects.create(
+                        reserva=reserva,
+                        tipo='C',
+                        combo=combo,
+                        cantidad=1,
+                        precio_unitario=combo.precio_combo,
+                        subtotal=combo.precio_combo
+                    )
+                # Si hubiera promoción, se puede manejar según reglas de negocio
+
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                {
+                    'mensaje': 'Reserva creada exitosamente',
+                    'codigo_reserva': reserva.codigo_reserva,
+                    'reserva': serializer.data
+                },
+                status=status.HTTP_201_CREATED,
+                headers=headers
+            )
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class DetalleReservaViewSet(viewsets.ModelViewSet):
     queryset = DetalleReserva.objects.all()
     serializer_class = DetalleReservaSerializer
