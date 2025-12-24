@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo Pago Recibido - Administración</title>
+</head>
+
+<body style="font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px;">
+    <div
+        style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div style="background-color: #2c3e50; padding: 20px; text-align: center;">
+            <h2 style="color: #ffffff; margin: 0;">📸 Nuevo Comprobante de Pago</h2>
+        </div>
+
+        <div style="padding: 30px;">
+            <p style="color: #555555; font-size: 16px;">Se ha subido un nuevo comprobante para la Reserva <strong>#{{
+                    reserva.codigo_reserva }}</strong>.</p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 25px;">
+                <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #666;">👤
+                        <strong>Cliente:</strong></td>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #333;">{{ reserva.cliente.nombre
+                        }} {{ reserva.cliente.apellido }} ({{ reserva.cliente.email }})</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #666;">💰 <strong>Monto
+                            Total:</strong></td>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #333; font-weight: bold;">${{
+                        reserva.total|floatformat:2 }}</td>
+                </tr>
+                <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #666;">🏦 <strong>Banco /
+                            Método:</strong></td>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #333;">
+                        {% if reserva.metodo_pago == 'transferencia' %}
+                        Transferencia Bancaria
+                        {% else %}
+                        {{ reserva.metodo_pago|title }}
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #666;">📅 <strong>Fecha
+                            Evento:</strong></td>
+                    <td style="padding: 12px; border-bottom: 1px solid #dee2e6; color: #333;">{{ reserva.fecha_evento }}
+                    </td>
+                </tr>
+            </table>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ dominio }}/admin/fiesta/reserva/{{ reserva.id }}/change/"
+                    style="background-color: #3498db; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Ver
+                    Comprobante en el Panel</a>
+            </div>
+
+            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+                Sistema de Notificaciones - Burbujitas de Colores
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

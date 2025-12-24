@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva Confirmada - Burbujitas de Colores</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #fdf2f7;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(255, 107, 157, 0.2);
+            overflow: hidden;
+            border: 1px solid #ffe3ed;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FF6B9D 0%, #ee4b85 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .content {
+            padding: 30px 25px;
+            text-align: center;
+        }
+
+        .greeting {
+            font-size: 22px;
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .info-box {
+            background-color: #fff9fb;
+            border-left: 4px solid #FF6B9D;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            font-size: 14px;
+            color: #555;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .table-container {
+            margin: 25px 0;
+            border: 1px solid #fdf2f7;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .product-table th {
+            background-color: #fff9fb;
+            color: #FF6B9D;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #ffe3ed;
+        }
+
+        .product-table td {
+            padding: 12px;
+            border-bottom: 1px solid #fdf2f7;
+            color: #444;
+            text-align: left;
+        }
+
+        .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            color: #FF6B9D;
+            text-align: right;
+            padding: 15px;
+            background-color: #fff9fb;
+        }
+
+        .btn {
+            background-color: #FF6B9D;
+            color: white !important;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 4px 10px rgba(255, 107, 157, 0.3);
+        }
+
+        .footer {
+            background-color: #fafafa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎈 Burbujitas de Colores</h1>
+        </div>
+        <div class="content">
+            <div class="greeting">¡Todo listo, {{ reserva.cliente.nombre }}! 🎉</div>
+
+            <p style="color: #666; line-height: 1.6;">
+                Tu pago ha sido verificado con éxito. Tu evento está <strong>100% confirmado</strong> y nosotros estamos
+                listos para hacerlo inolvidable.
+            </p>
+
+            <div class="info-box">
+                <strong>Resumen de la Reserva:</strong><br>
+                🔑 Código: #{{ reserva.codigo_reserva }}<br>
+                📅 Fecha: {{ reserva.fecha_evento }}<br>
+                📍 Lugar: {{ reserva.direccion_evento }}
+            </div>
+
+            <div class="table-container">
+                <table class="product-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th style="text-align: center;">Cant.</th>
+                            <th style="text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in detalles %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.nombre|title }}</strong>
+                                {% if item.descripcion %}<br><span style="font-size: 11px; color: #888;">{{
+                                    item.descripcion|truncatechars:40 }}</span>{% endif %}
+                            </td>
+                            <td style="text-align: center;">x{{ item.cantidad }}</td>
+                            <td style="text-align: right; font-weight: bold;">${{ item.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="total-row">TOTAL PAGADO: ${{ reserva.total|floatformat:2 }}</div>
+            </div>
+
+            <a href="{{ dominio }}/reservas" class="btn">Ver mi reserva en la web</a>
+
+            <p style="color: #999; font-size: 14px;">¡Gracias por confiar en nosotros! 🎈</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Burbujitas de Colores. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+
+</html>

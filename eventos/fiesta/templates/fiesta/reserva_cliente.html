@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Reserva Recibida! - Burbujitas de Colores</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 3px solid #FF6B9D;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #FF6B9D;
+            font-size: 26px;
+            font-weight: 800;
+        }
+
+        .content {
+            padding: 30px;
+            line-height: 1.6;
+        }
+
+        .welcome-msg {
+            font-size: 18px;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: #fff9fb;
+            border: 1px solid #ffe3ed;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .reservation-id {
+            background-color: #FF6B9D;
+            color: white;
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .details-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .details-list li {
+            padding: 10px 0;
+            border-bottom: 1px dashed #ffe3ed;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .details-list li:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            font-weight: 700;
+            color: #555;
+        }
+
+        .total {
+            text-align: right;
+            font-size: 22px;
+            font-weight: 800;
+            color: #333;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #ffe3ed;
+        }
+
+        .bank-section {
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        .bank-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .bank-card {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .bank-logo {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            margin-right: 15px;
+            border-radius: 8px;
+            padding: 5px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .bank-info {
+            flex: 1;
+        }
+
+        .bank-name {
+            font-weight: 800;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 2px;
+            text-transform: capitalize;
+        }
+
+        .account-number {
+            color: #FF6B9D;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .account-type {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #999;
+            background-color: #fcfcfc;
+            border-top: 1px solid #eee;
+        }
+
+        .btn-action {
+            display: block;
+            width: fit-content;
+            margin: 25px auto;
+            padding: 12px 30px;
+            background-color: #FF6B9D;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>¡Reserva Recibida! 🎉</h1>
+        </div>
+
+        <div class="content">
+            <p class="welcome-msg">Hola <strong>{{ reserva.cliente.nombre }}</strong>,</p>
+            <p>Hemos recibido tu solicitud de reserva. Para completarla, por favor realiza el pago correspondiente.</p>
+
+            <div class="card">
+                <div class="reservation-id">Reserva #{{ reserva.codigo_reserva }}</div>
+                <ul class="details-list">
+                    <li><span class="label">📅 Fecha:</span> <span>{{ reserva.fecha_evento }}</span></li>
+                    <li><span class="label">⏰ Hora:</span> <span>{{ reserva.fecha_inicio }}</span></li>
+                    <li><span class="label">📍 Dirección:</span> <span>{{ reserva.direccion_evento }}</span></li>
+                    {% if reserva.metodo_pago == 'efectivo' %}
+                    <li><span class="label">💳 Método:</span> <span>Pago en Efectivo (Día del evento)</span></li>
+                    {% endif %}
+                </ul>
+
+                <div class="total">
+                    Total: ${{ reserva.total }}
+                </div>
+            </div>
+
+            {% if not reserva.metodo_pago or reserva.metodo_pago == 'transferencia' %}
+            <div class="bank-section">
+                <div class="bank-title">💳 Datos para Transferencia / Depósito</div>
+
+                {% for banco in bancos %}
+                <div class="bank-card">
+                    {% if "pichincha" in banco.banco_nombre|lower %}
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjKAQpynPPXHpSjfBEJSvqxeA3Z06tSabtAw&s"
+                        alt="Pichincha" class="bank-logo">
+                    {% elif "guayaquil" in banco.banco_nombre|lower %}
+                    <img src="https://play-lh.googleusercontent.com/4A7fREJ2S-XLcgvwPDd8jVQCODSz0mSgzJLCbVU_62jKeDWkaGytvMSFWVE_dDovOKnt"
+                        alt="Guayaquil" class="bank-logo">
+                    {% else %}
+                    <div class="bank-logo"
+                        style="background:#eee; display:flex; align-items:center; justify-content:center;">🏦</div>
+                    {% endif %}
+
+                    <div class="bank-info">
+                        <div class="bank-name">{{ banco.banco_nombre }}</div>
+                        <div class="account-number">{{ banco.numero_cuenta }}</div>
+                        <div class="account-type">{{ banco.tipo_cuenta }} • {{ banco.beneficiario }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <p style="text-align: center; color: #666; font-size: 14px; margin-top: 20px;">
+                    Una vez realizado el pago, por favor sube tu comprobante en la plataforma.
+                </p>
+                <a href="{{ dominio }}/confirmacion/{{ reserva.id }}" class="btn-action">Subir Comprobante</a>
+            </div>
+            {% endif %}
+
+            <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #888;">
+                <p>¿Tienes dudas? Contáctanos y te ayudaremos.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 Burbujitas de Colores. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+
+</html>

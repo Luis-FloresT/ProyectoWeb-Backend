@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>¡Pago Confirmado! - Burbujitas de Colores</title>
+</head>
+
+<body
+    style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fdfbf7; margin: 0; padding: 20px; color: #333;">
+    <div
+        style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.08); border: 1px solid #eaeaea;">
+        <!-- Cabecera Premium -->
+        <div
+            style="background: linear-gradient(90deg, #fff0f5 0%, #fff9e6 100%); padding: 30px 20px; text-align: center; border-bottom: 1px solid #ffe6f0;">
+            <div style="font-size: 40px; margin-bottom: 5px;">🎈</div>
+            <h1
+                style="color: #FF6B9D; margin: 0; font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">
+                Burbujitas de Colores</h1>
+            <p
+                style="color: #FFC74F; margin: 5px 0 0 0; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                Confirmación de Reserva</p>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div style="padding: 40px 30px;">
+            <div style="text-align: center; margin-bottom: 35px;">
+                <h2 style="color: #333; font-size: 22px; margin-bottom: 10px;">¡Todo Listo, {{ reserva.cliente.nombre
+                    }}! 🎉</h2>
+                <p style="color: #666; font-size: 16px; line-height: 1.5; margin: 0;">
+                    Hemos verificado tu pago exitosamente. <br>Tu evento está 100% confirmado y agendado.
+                </p>
+            </div>
+
+            <!-- Tarjeta de Detalles -->
+            <div
+                style="background-color: #ffffff; border: 1px solid #eee; border-radius: 12px; padding: 0; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                <div style="background-color: #fafafa; padding: 15px 20px; border-bottom: 1px solid #eee;">
+                    <h3 style="margin: 0; font-size: 16px; color: #333;">📦 Detalle del Pedido #{{
+                        reserva.codigo_reserva }}</h3>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr
+                            style="background-color: #fff; color: #999; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            <th style="padding: 15px 20px; text-align: left; font-weight: 600;">Producto</th>
+                            <th style="padding: 15px 20px; text-align: center; font-weight: 600;">Cant.</th>
+                            <th style="padding: 15px 20px; text-align: right; font-weight: 600;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr style="border-top: 1px solid #f5f5f5;">
+                            <td style="padding: 15px 20px; vertical-align: top;">
+                                <div
+                                    style="font-weight: 700; color: #333; font-size: 15px; margin-bottom: 5px; text-transform: capitalize;">
+                                    Hora Loca
+                                </div>
+                                
+                                <ul
+                                    style="margin: 0; padding-left: 15px; color: #777; font-size: 13px; line-height: 1.4;">
+                                    <li style="margin-bottom: 2px;">Incluye globos y antifaces
+                                    </li>
+                                </ul>
+                                
+                            </td>
+                            <td
+                                style="padding: 15px 20px; text-align: center; vertical-align: top; color: #666; font-weight: 500;">
+                                x1
+                            </td>
+                            <td
+                                style="padding: 15px 20px; text-align: right; vertical-align: top; font-weight: 700; color: #333;">
+                                $100,00
+                            </td>
+                        </tr>
+                        
+                        <tr style="border-top: 1px solid #f5f5f5;">
+                            <td style="padding: 15px 20px; vertical-align: top;">
+                                <div
+                                    style="font-weight: 700; color: #333; font-size: 15px; margin-bottom: 5px; text-transform: capitalize;">
+                                    Mago
+                                </div>
+                                
+                            </td>
+                            <td
+                                style="padding: 15px 20px; text-align: center; vertical-align: top; color: #666; font-weight: 500;">
+                                x1
+                            </td>
+                            <td
+                                style="padding: 15px 20px; text-align: right; vertical-align: top; font-weight: 700; color: #333;">
+                                $50,00
+                            </td>
+                        </tr>
+                        
+                    </tbody>
+                    <tfoot>
+                        <tr style="background-color: #fffcf5;">
+                            <td colspan="2" style="padding: 20px; text-align: right; color: #333; font-size: 14px;">
+                                Monto Total Pagado:</td>
+                            <td
+                                style="padding: 20px; text-align: right; color: #27ae60; font-size: 22px; font-weight: 800;">
+                                $150,00
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Botón de Acción -->
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="http://localhost:8000/reservas" style="
+                    background: linear-gradient(135deg, #FF6B9D 0%, #ff9eb5 100%);
+                    color: white;
+                    padding: 16px 40px;
+                    text-decoration: none;
+                    border-radius: 50px;
+                    font-weight: 800;
+                    font-size: 16px;
+                    box-shadow: 0 10px 20px rgba(255, 107, 157, 0.3);
+                    display: inline-block;
+                    transition: all 0.3s;
+                ">
+                    Ver Mis Reservas
+                </a>
+                <p style="margin-top: 20px; color: #999; font-size: 13px;">
+                    ¿Preguntas? Responde a este correo.
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div
+            style="background-color: #fcfcfc; padding: 25px; text-align: center; font-size: 12px; color: #aaa; border-top: 1px solid #eee;">
+            <p>&copy; 2025 Burbujitas de Colores. Momentos inolvidables.</p>
+        </div>
+    </div>
+</body>
+
+</html>

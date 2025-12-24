@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orden de Logística - #{{ reserva.codigo_reserva }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f8faf8;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            border: 1px solid #e1e8e1;
+        }
+
+        /* Encabezado con degradado verde profesional */
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #2e7d32 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section-title {
+            color: #2e7d32;
+            border-bottom: 2px solid #e8f5e9;
+            padding-bottom: 8px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Grid de información al estilo verificación */
+        .info-box {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* Tabla Unificada */
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .product-table th {
+            background-color: #f1f8f1;
+            color: #2e7d32;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #4CAF50;
+            font-size: 13px;
+        }
+
+        .product-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .total-row {
+            background-color: #f1f8f1;
+            font-weight: bold;
+            text-align: right;
+            color: #2e7d32;
+            font-size: 16px;
+        }
+
+        .maps-button {
+            display: inline-block;
+            background-color: #4285F4;
+            color: white !important;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .footer {
+            background-color: #333;
+            color: #bbb;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .brand-pink {
+            color: #FF6B9D;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 ORDEN DE LOGÍSTICA</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Reserva: #{{ reserva.codigo_reserva }}</p>
+        </div>
+
+        <div class="content">
+            <div class="section-title">📍 Detalles del Evento</div>
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="label">Cliente:</span>
+                    <span class="value">{{ reserva.cliente.nombre }} {{ reserva.cliente.apellido }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Fecha:</span>
+                    <span class="value">{{ reserva.fecha_evento }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Horario:</span>
+                    <span class="value">{{ reserva.fecha_inicio }}</span>
+                </div>
+                <div class="info-row" style="border:none;">
+                    <span class="label">Teléfono:</span>
+                    <span class="value">{{ reserva.cliente.telefono }}</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <span class="label">Dirección de Entrega:</span><br>
+                <span class="value" style="font-size: 15px;">{{ reserva.direccion_evento }}</span><br>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ reserva.direccion_evento|urlencode }}"
+                    class="maps-button">
+                    📍 Abrir en Google Maps
+                </a>
+            </div>
+
+            <div class="section-title">📦 Inventario a Preparar</div>
+            <table class="product-table">
+                <thead>
+                    <tr>
+                        <th>Producto / Servicio</th>
+                        <th style="text-align: center;">Cantidad</th>
+                        <th style="text-align: right;">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in detalles %}
+                    <tr>
+                        <td><strong>{{ item.nombre|title }}</strong></td>
+                        <td style="text-align: center;">{{ item.cantidad }}</td>
+                        <td style="text-align: right;">${{ item.subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="2" style="padding: 15px;">TOTAL COBRADO:</td>
+                        <td style="padding: 15px; text-align: right;">${{ reserva.total|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {% if reserva.notas_especiales %}
+            <div class="section-title">📝 Notas Especiales</div>
+            <div
+                style="background-color: #fff9c4; padding: 15px; border-radius: 8px; font-style: italic; color: #856404; font-size: 14px;">
+                "{{ reserva.notas_especiales }}"
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            <p>Sistema de Gestión <span class="brand-pink">Burbujitas de Colores</span></p>
+            <p>Aviso automático para personal de bodega y transporte.</p>
+        </div>
+    </div>
+</body>
+
+</html>
