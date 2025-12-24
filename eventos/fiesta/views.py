@@ -25,11 +25,7 @@ from django.db import transaction # IMPORTANTE PARA CONFIRMAR RESERVA
 from django.http import HttpResponse
 from django.db.models import Q
 from django.utils import timezone
-<<<<<<< HEAD
 from django.core.mail import send_mail, EmailMessage, EmailMultiAlternatives # EmailMultiAlternatives añadido
-=======
-from django.core.mail import send_mail, EmailMessage # EmailMessage importado una vez
->>>>>>> main
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -37,31 +33,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 
 
-<<<<<<< HEAD
 # 4. Local App Imports (Models and Serializers)
-=======
-# IMPORTAMOS MODELOS Y SERIALIZERS
-
-from django.http import HttpResponse
-from rest_framework.authtoken.models import Token
-from django.db.models import Q
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
-from .models import EmailVerificationToken
-from django.core.mail import send_mail, EmailMessage
-from django.template.loader import render_to_string
-from django.shortcuts import render, get_object_or_404
-import uuid
-from django.conf import settings
-from django.core.mail import EmailMessage
-import smtplib
-import traceback
-import uuid
-from .models import RegistroUsuario, EmailVerificationToken
-from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
-from django.db import IntegrityError
->>>>>>> main
 
 
 
@@ -70,28 +42,17 @@ from django.db import IntegrityError
 
 # 4. Local App Imports (Models and Serializers)
 from .models import (
-<<<<<<< HEAD
     RegistroUsuario, EmailVerificationToken,
     Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
     Carrito, ItemCarrito, ConfiguracionPago
-=======
-    RegistroUsuario, EmailVerificationToken, # Los modelos RegistroUsuario y Token de verificación
-    Promocion, Categoria, Servicio, Combo, ComboServicio,
-    HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
-    Carrito, ItemCarrito 
->>>>>>> main
 )
 
 from .serializers import (
     RegistroUsuarioSerializer, PromocionSerializer, CategoriaSerializer, ServicioSerializer,
     ComboDetailSerializer, ComboServicioSerializer, HorarioDisponibleSerializer, ReservaSerializer,
     DetalleReservaSerializer, PagoSerializer, CancelacionSerializer,
-<<<<<<< HEAD
     CarritoSerializer, ItemCarritoSerializer, ConfiguracionPagoSerializer
-=======
-    CarritoSerializer, ItemCarritoSerializer
->>>>>>> main
 )
 
 
@@ -190,7 +151,6 @@ def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
             raise
 
 
-<<<<<<< HEAD
 def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
     """
     Envía dos correos de notificación: uno al cliente y otro al administrador.
@@ -398,8 +358,6 @@ def enviar_correo_anulacion(reserva_id):
         print(f"❌ Error al enviar correo de anulación: {str(e)}")
 
 
-=======
->>>>>>> main
 
 
 
@@ -427,17 +385,10 @@ class LoginView(APIView):
         if not user_obj.check_password(clave):
             return Response({'message': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
             
-<<<<<<< HEAD
         # 3. Verificar que el correo ha sido verificado
         if not user_obj.is_active:
             return Response({'message': 'Debes verificar tu correo electrónico antes de poder iniciar sesión.'}, status=status.HTTP_403_FORBIDDEN)
             
-=======
-        # 3. Verificar si está activo (email verificado)
-        if not user_obj.is_active:
-            return Response({'message': 'El correo no ha sido verificado. Revisa tu bandeja de entrada.'}, status=status.HTTP_403_FORBIDDEN)
-
->>>>>>> main
         # 4. Login exitoso
         token, created = Token.objects.get_or_create(user=user_obj)
         cliente = RegistroUsuario.objects.filter(email=user_obj.email).first()
@@ -492,7 +443,6 @@ class RegistroUsuarioView(APIView):
 
             # --- INICIO DE TRANSACCIÓN ATÓMICA ---
             with transaction.atomic():
-<<<<<<< HEAD
                 # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
                 user = User.objects.create_user(username=nombre, email=email, password=clave)
                 user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
@@ -523,29 +473,6 @@ class RegistroUsuarioView(APIView):
 
                 # 7️⃣ Sincronizar con RegistroUsuario (Perfil)
                 # (Nota) No usamos FK a User en RegistroUsuario; sincronizamos por email.
-=======
-                # 6️⃣ Crear usuario inactivo
-                user = User.objects.create_user(username=nombre, email=email, password=clave)
-                user.is_active = False
-                user.save()
-
-                # 7️⃣ Sincronizar con RegistroUsuario (Perfil)
-                try:
-                    # Intentar obtener el perfil (si fue creado por signal)
-                    registro = RegistroUsuario.objects.get(user=user)
-                    registro.nombre = nombre
-                    registro.apellido = apellido
-                    registro.telefono = telefono
-                    registro.save()
-                except RegistroUsuario.DoesNotExist:
-                    # Crear manualmente si el signal no lo hizo
-                    registro = RegistroUsuario.objects.create(
-                        user=user,
-                        nombre=nombre,
-                        apellido=apellido,
-                        telefono=telefono
-                    )
->>>>>>> main
 
                 # 8️⃣ Crear token de verificación
                 token = str(uuid.uuid4())
@@ -632,22 +559,12 @@ class VerificarEmailView(APIView):
     Verifica el correo de un usuario usando un token enviado por email.
     URL: /verificar-email/?token=<token>
     """
-<<<<<<< HEAD
-=======
-
-
-class VerificarEmailView(APIView):
->>>>>>> main
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         token_value = request.query_params.get('token')
         if not token_value:
-<<<<<<< HEAD
-=======
-
->>>>>>> main
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
@@ -657,44 +574,15 @@ class VerificarEmailView(APIView):
         if token_obj.is_expired():
             return Response({'error': 'El token ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-<<<<<<< HEAD
         # Marcar usuario como verificado
         token_obj.user.is_active = True
         token_obj.user.save()
 
         # Eliminar el token para que no pueda reutilizarse
-=======
-        # Marcar usuario como activo/verificado (opcional)
-        token_obj.user.is_active = True
-        token_obj.user.save()
-
-        # Opcional: eliminar el token para que no pueda reutilizarse
->>>>>>> main
         token_obj.delete()
 
         # Renderizar página de éxito
         return render(request, 'emails/verification_success.html')
-<<<<<<< HEAD
-=======
-        return Response({'error': 'Falta el token'}, status=400)
-
-        # Buscar el token en la base de datos
-        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
-
-        # 1. Activar al usuario
-        user = token_obj.user
-        user.is_active = True
-        user.save()
-        
-        # 2. Generar el Token de sesión (para el Frontend)
-        auth_token, _ = Token.objects.get_or_create(user=user)
-        
-        # 3. Borrar el token de email ya usado
-        token_obj.delete()
-
-        # 4. RENDERIZAR PÁGINA DE ÉXITO (Redirección automática en el HTML)
-        return render(request, 'emails/verification_success.html')
->>>>>>> main
 
 
 
@@ -764,7 +652,6 @@ class ReservaViewSet(viewsets.ModelViewSet):
     serializer_class = ReservaSerializer
     permission_classes = [SoloUsuariosAutenticados]
 
-<<<<<<< HEAD
     def get_queryset(self):
         # Optimizar carga de detalles y nombres de productos
         return Reserva.objects.all().prefetch_related(
@@ -896,8 +783,6 @@ class ReservaViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-=======
->>>>>>> main
 class DetalleReservaViewSet(viewsets.ModelViewSet):
     queryset = DetalleReserva.objects.all()
     serializer_class = DetalleReservaSerializer
@@ -944,10 +829,7 @@ def agregar_al_carrito(request):
         # 4. Identificar Producto y Precio
         servicio_obj = None
         combo_obj = None
-<<<<<<< HEAD
         promocion_obj = None
-=======
->>>>>>> main
         precio = 0
 
         if tipo == 'servicio':
@@ -956,7 +838,6 @@ def agregar_al_carrito(request):
         elif tipo == 'combo':
             combo_obj = get_object_or_404(Combo, pk=item_id)
             precio = combo_obj.precio_combo
-<<<<<<< HEAD
         elif tipo == 'promocion':
             promocion_obj = get_object_or_404(Promocion, pk=item_id)
             # Calcular precio basado en descuento (esto depende de la lógica de negocio)
@@ -964,10 +845,6 @@ def agregar_al_carrito(request):
             precio = promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0
         
         if not servicio_obj and not combo_obj and not promocion_obj:
-=======
-        
-        if not servicio_obj and not combo_obj:
->>>>>>> main
             return Response({'error': 'Producto no encontrado'}, status=404)
 
         # 5. Guardar en Carrito (Upsert)
@@ -975,10 +852,7 @@ def agregar_al_carrito(request):
             carrito=carrito,
             servicio=servicio_obj,
             combo=combo_obj,
-<<<<<<< HEAD
             promocion=promocion_obj,
-=======
->>>>>>> main
             defaults={'precio_unitario': precio, 'cantidad': 0}
         )
         
@@ -1045,7 +919,6 @@ def confirmar_carrito(request):
             )
 
             # 2. Mover items de Carrito a DetalleReserva
-<<<<<<< HEAD
             print(f"DEBUG: Moviendo {carrito.items.count()} items al detalle de reserva...")
             for item in carrito.items.all():
                 try:
@@ -1063,23 +936,10 @@ def confirmar_carrito(request):
                 except Exception as e:
                     print(f"DEBUG ERROR creando detalle: {e}")
                     raise e # Re-raise to trigger atomic rollback
-=======
-            for item in carrito.items.all():
-                DetalleReserva.objects.create(
-                    reserva=nueva_reserva,
-                    tipo='S' if item.servicio else 'C',
-                    servicio=item.servicio,
-                    combo=item.combo,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.precio_unitario,
-                    subtotal=item.subtotal
-                )
->>>>>>> main
             
             # 3. Vaciar Carrito
             carrito.items.all().delete()
 
-<<<<<<< HEAD
             # Silencioso al inicio
             # Enviar correo de confirmación de recepción (PENDIENTE)
             try:
@@ -1095,8 +955,6 @@ def confirmar_carrito(request):
                 print(f"⚠️ Error enviando correo inicial: {e}")
 
 
-=======
->>>>>>> main
         return Response({
             'mensaje': 'Reserva creada con éxito', 
             'codigo': nueva_reserva.codigo_reserva
@@ -1106,7 +964,6 @@ def confirmar_carrito(request):
         print(f"ERROR CONFIRMACION: {str(e)}")
         return Response({'error': str(e)}, status=500)
 
-<<<<<<< HEAD
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -1205,8 +1062,6 @@ def enviar_notificacion_comprobante(reserva_id):
         print(f"❌ Error notificando comprobante: {e}")
 
 
-=======
->>>>>>> main
 # C. ViewSet para gestionar el carrito (Ver)
 class CarritoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Carrito.objects.all()
@@ -1219,7 +1074,6 @@ class CarritoViewSet(viewsets.ReadOnlyModelViewSet):
             return Carrito.objects.filter(cliente__email=user.email)
         return Carrito.objects.none()
 
-<<<<<<< HEAD
 
 class ConfiguracionPagoViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -1229,8 +1083,6 @@ class ConfiguracionPagoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ConfiguracionPagoSerializer
     permission_classes = [AllowAny] # Cualquier usuario puede ver los datos para pagar
 
-=======
->>>>>>> main
 # D. ViewSet para gestionar items individuales (Eliminar)
 class ItemCarritoViewSet(viewsets.ModelViewSet):
     queryset = ItemCarrito.objects.all()
