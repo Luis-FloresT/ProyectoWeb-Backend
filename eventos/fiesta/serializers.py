@@ -165,7 +165,7 @@ class ReservaSerializer(serializers.ModelSerializer):
             
         print("DEBUG SERIALIZER: No se encontró nombre, retornando None")
         return None  # Retornar null si no se encuentra nada
-
+        
     def validate_codigo_reserva(self, value):
         if not value:
             raise serializers.ValidationError("El código de reserva no puede estar vacío.")

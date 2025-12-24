@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<<<<<<< HEAD
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -68,10 +69,94 @@
         }
         .footer {
             background-color: #f9f9f9;
+=======
+<html>
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #fce4ec;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FF6B35, #C724B1);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+        }
+
+        .balloon {
+            font-size: 40px;
+            position: absolute;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .balloon-1 {
+            top: 20px;
+            left: 20px;
+            animation-delay: 0s;
+        }
+
+        .balloon-2 {
+            top: 30px;
+            right: 30px;
+            animation-delay: 1.5s;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+            color: #333;
+        }
+
+        h1 {
+            margin: 0 0 20px;
+            font-size: 24px;
+            color: #C724B1;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 32px;
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 4px 10px rgba(247, 147, 30, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+>>>>>>> main
             padding: 20px;
             text-align: center;
             font-size: 12px;
             color: #999;
+<<<<<<< HEAD
             border-top: 1px solid #eee;
         }
         .warning {
@@ -128,3 +213,46 @@
     </div>
 </body>
 </html>
+=======
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="balloon balloon-1">🎈</div>
+            <div class="balloon balloon-2">🎈</div>
+            <h1>¡Bienvenido a Burbujitas de Colores!</h1>
+        </div>
+        <div class="content">
+            <h1>Hola, {{ nombre }}</h1>
+            <p>Gracias por registrarte. Estamos muy emocionados de tenerte aquí.</p>
+            <p>Para empezar a disfrutar de nuestros servicios, por favor confirma tu correo electrónico haciendo clic en
+                el botón de abajo:</p>
+            <a href="{{ link_verificacion }}" class="btn">Verificar mi Cuenta</a>
+            <p style="margin-top: 30px; font-size: 12px; color: #aaa;">Si el botón no funciona, copia y pega este
+                enlace:<br>{{ link_verificacion }}</p>
+        </div>
+        <div class="footer">
+            &copy; 2025 Burbujitas de Colores. Todos los derechos reservados.
+        </div>
+    </div>
+</body>
+
+</html>
+>>>>>>> main
