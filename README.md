@@ -1,4 +1,4 @@
-﻿# BURBUJITAS DE COLORES - Backend
+# BURBUJITAS DE COLORES - Backend
 
 API Django REST Framework para gestionar fiestas infantiles.
 
@@ -30,7 +30,6 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-<<<<<<< HEAD
 ### Paso 6: Configurar correo (Brevo)
 
 Para que el envío de correos funcione, debes configurar la API Key de Brevo como variable de entorno.
@@ -48,9 +47,6 @@ export BREVO_API_KEY="TU_API_KEY_DE_BREVO"
 Si no configuras `BREVO_API_KEY`, el backend usa el backend de consola y verás el contenido del correo en la terminal (modo desarrollo).
 
 ### Paso 7: Iniciar servidor
-=======
-### Paso 6: Iniciar servidor
->>>>>>> main
 ```bash
 python manage.py runserver
 ```
@@ -59,7 +55,6 @@ El servidor estará disponible en http://127.0.0.1:8000
 
 Panel de administración en http://127.0.0.1:8000/admin/
 
-<<<<<<< HEAD
 ## Verificación de correo
 
 - Al registrarse, se genera un token y se envía un correo de verificación al usuario.
@@ -85,8 +80,6 @@ Panel de administración en http://127.0.0.1:8000/admin/
 	- `git push -u origin feature/email-verification-flow`
 	- Crear Pull Request a `main`
 
-=======
->>>>>>> main
 ## Cómo funcionan los datos
 
 - **Base de datos**: Se guardan automáticamente en PostgreSQL cuando el frontend envía datos a través de la API
