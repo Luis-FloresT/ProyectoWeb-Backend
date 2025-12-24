@@ -2,11 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-<<<<<<< HEAD
 from django.utils import timezone
-=======
-from django.utils import timezone  # Para timezone.now()
->>>>>>> main
 from datetime import timedelta
 import uuid
 
@@ -17,7 +13,6 @@ import uuid
 class RegistroUsuario(models.Model):
     """
     Cliente externo que realiza la reserva.
-<<<<<<< HEAD
     Separado del User de Django para no mezclar auth interna con datos de clientes.
     """
     nombre = models.CharField(max_length=100)
@@ -28,29 +23,12 @@ class RegistroUsuario(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
     activo = models.BooleanField(default=True)
     
-=======
-    Combina información del cliente y se relaciona con el User de Django.
-    """
-    # Relación de la rama 'feature/modificación' (es la correcta para un perfil)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="perfil", null=True, blank=True)
-    
-    # Campos de cliente (De tu rama 'HEAD')
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
-    email = models.EmailField(unique=True, null=True, blank=True) # <-- Reincorporado
-    contrasena = models.CharField(max_length=128, null=True, blank=True) # <-- Reincorporado (Aunque no se usa para login con User de Django)
-    telefono = models.CharField(max_length=20, unique=True)
-    activo = models.BooleanField(default=True) # <-- Reincorporado
-    fecha_registro = models.DateTimeField(auto_now_add=True)
-
->>>>>>> main
     class Meta:
         verbose_name = "Registro de Usuario"
         verbose_name_plural = "Registros de Usuarios"
         db_table = 'registro_usuario'
 
     def __str__(self):
-<<<<<<< HEAD
         return f"{self.nombre} {self.apellido} | {self.email}"
 
 
@@ -69,23 +47,6 @@ class EmailVerificationToken(models.Model):
         verbose_name_plural = "Tokens de Verificación de Email"
         db_table = 'email_verification_token'
 
-=======
-        # Usamos el string más descriptivo
-        return f"{self.nombre} {self.apellido} ({self.email or self.user.email if self.user else 'No asociado'})"
-
-
-# ---------------------------
-# MODELO DE VERIFICACIÓN DE EMAIL (De la rama 'feature/modificación')
-# ---------------------------
-
-class EmailVerificationToken(models.Model):
-    """Token de verificación de correo."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="verification_tokens")
-    token = models.CharField(max_length=64, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-
->>>>>>> main
     def save(self, *args, **kwargs):
         if not self.expires_at:
             self.expires_at = timezone.now() + timedelta(hours=24)
@@ -95,11 +56,7 @@ class EmailVerificationToken(models.Model):
         return timezone.now() > self.expires_at
 
     def __str__(self):
-<<<<<<< HEAD
         return f"Token for {self.user.username} - {self.token[:10]}..."
-=======
-        return f"{self.user.username} - {self.token}"
->>>>>>> main
 
 
 # ==========================================
@@ -138,13 +95,6 @@ class Promocion(models.Model):
         return f"{self.nombre} ({self.descuento_porcentaje}% / ${self.descuento_monto})"
 
 
-<<<<<<< HEAD
-=======
-# ---------------------------
-# MODELOS DE SERVICIOS Y COMBOS
-# ---------------------------
-
->>>>>>> main
 class Servicio(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='servicios')
     nombre = models.CharField(max_length=100)
@@ -199,7 +149,6 @@ class ComboServicio(models.Model):
 
 
 # ==========================================
-<<<<<<< HEAD
 # 4. GESTIÓN DEL CARRITO
 # ==========================================
 
@@ -256,8 +205,6 @@ class ItemCarrito(models.Model):
 
 
 # ==========================================
-=======
->>>>>>> main
 # 3. GESTIÓN DE EVENTOS (Reservas, Pagos)
 # ==========================================
 
@@ -278,7 +225,6 @@ class HorarioDisponible(models.Model):
         return f"{self.fecha} | {self.hora_inicio} - {self.hora_fin}"
 
 
-<<<<<<< HEAD
 class ConfiguracionPago(models.Model):
     """
     Datos de cuentas bancarias para transferencias (Ej: Banco Guayaquil, Pichincha).
@@ -312,9 +258,6 @@ class Reserva(models.Model):
         ('ANULADA', 'Anulada'),
     ]
 
-=======
-class Reserva(models.Model):
->>>>>>> main
     cliente = models.ForeignKey(RegistroUsuario, on_delete=models.PROTECT, related_name='reservas')
     horario = models.ForeignKey(HorarioDisponible, on_delete=models.PROTECT, related_name='reservas')
     
@@ -324,29 +267,22 @@ class Reserva(models.Model):
     direccion_evento = models.CharField(max_length=255)
     notas_especiales = models.TextField(blank=True, null=True)
     
-<<<<<<< HEAD
     # Pago y comprobante
     metodo_pago = models.CharField(max_length=20, choices=METODO_PAGO_CHOICES, default='transferencia')
     comprobante_pago = models.ImageField(upload_to='comprobantes/', null=True, blank=True)
     transaccion_id = models.CharField(max_length=100, null=True, blank=True, help_text="ID devuelto por la pasarela (Payphone, Stripe, etc)")
 
-=======
->>>>>>> main
     # Datos financieros
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     impuestos = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total = models.DecimalField(max_digits=10, decimal_places=2)
     
-<<<<<<< HEAD
     estado = models.CharField(
         max_length=20, 
         choices=ESTADO_RESERVA_CHOICES, 
         default='PENDIENTE'
     )
-=======
-    estado = models.CharField(max_length=50, default='PENDIENTE') # PENDIENTE, CONFIRMADA, CANCELADA
->>>>>>> main
     fecha_reserva = models.DateTimeField(auto_now_add=True)
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 
@@ -364,10 +300,7 @@ class DetalleReserva(models.Model):
     TIPO_CHOICES = [
         ('C', 'Combo'),
         ('S', 'Servicio'),
-<<<<<<< HEAD
         ('P', 'Promoción'),
-=======
->>>>>>> main
     ]
     
     reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='detalles')
@@ -376,10 +309,7 @@ class DetalleReserva(models.Model):
     # Relaciones opcionales dependiendo del tipo
     combo = models.ForeignKey(Combo, on_delete=models.SET_NULL, null=True, blank=True)
     servicio = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
-<<<<<<< HEAD
     promocion = models.ForeignKey(Promocion, on_delete=models.SET_NULL, null=True, blank=True)
-=======
->>>>>>> main
     
     cantidad = models.IntegerField(default=1)
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -391,7 +321,6 @@ class DetalleReserva(models.Model):
         db_table = 'detalle_reserva'
 
     def __str__(self):
-<<<<<<< HEAD
         item_nombre = "Item eliminado"
         if self.combo:
             item_nombre = self.combo.nombre
@@ -402,16 +331,6 @@ class DetalleReserva(models.Model):
         return f"{self.reserva.codigo_reserva}: {item_nombre} x{self.cantidad}"
 
 
-=======
-        item_nombre = self.combo.nombre if self.combo else (self.servicio.nombre if self.servicio else "Item eliminado")
-        return f"{self.reserva.codigo_reserva}: {item_nombre} x{self.cantidad}"
-
-
-# ---------------------------
-# MODELOS DE PAGO Y CANCELACIÓN
-# ---------------------------
-
->>>>>>> main
 class Pago(models.Model):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name='pago')
     metodo_pago = models.CharField(max_length=50)
@@ -446,59 +365,6 @@ class Cancelacion(models.Model):
     def __str__(self):
         return f"Cancelación #{self.reserva.codigo_reserva}"
 
-<<<<<<< HEAD
-=======
-
-# ==========================================
-# 4. GESTIÓN DEL CARRITO (De la rama 'HEAD')
-# ==========================================
-
-class Carrito(models.Model):
-    """
-    Carrito temporal asociado a un cliente registrado.
-    """
-    cliente = models.OneToOneField(RegistroUsuario, on_delete=models.CASCADE, related_name='carrito')
-    creado_en = models.DateTimeField(auto_now_add=True)
-    actualizado_en = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Carrito de Compras"
-        verbose_name_plural = "Carritos de Compras"
-        db_table = 'carrito'
-
-    def __str__(self):
-        return f"Carrito de {self.cliente.nombre}"
-
-class ItemCarrito(models.Model):
-    """
-    Items individuales dentro del carrito. 
-    Puede ser un Servicio O un Combo.
-    """
-    carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE, related_name='items')
-    
-    # Opcionales: El item puede ser servicio O combo
-    servicio = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
-    combo = models.ForeignKey(Combo, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    cantidad = models.PositiveIntegerField(default=1)
-    # Guardamos el precio al momento de añadirlo por si cambia después
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) 
-
-    class Meta:
-        verbose_name = "Item del Carrito"
-        verbose_name_plural = "Items del Carrito"
-        db_table = 'item_carrito'
-
-    def __str__(self):
-        nombre = self.combo.nombre if self.combo else (self.servicio.nombre if self.servicio else "Item desconocido")
-        return f"{nombre} (x{self.cantidad})"
-        
-    @property
-    def subtotal(self):
-        return self.precio_unitario * self.cantidad
-
-
->>>>>>> main
 # ==========================================
 # 5. SEÑALES (AUTOMATIZACIÓN DE PERFILES)
 # ==========================================
@@ -506,7 +372,6 @@ class ItemCarrito(models.Model):
 @receiver(post_save, sender=User)
 def crear_perfil_cliente_automatico(sender, instance, created, **kwargs):
     """
-<<<<<<< HEAD
     Esta función se ejecuta AUTOMÁTICAMENTE cada vez que se crea un Usuario de Django
     (sea por comando createsuperuser, por admin o por registro normal).
     
@@ -550,25 +415,3 @@ def auto_confirmacion_pago(sender, instance, created, **kwargs):
     # 2. CASO: ANULADA
     if instance.estado == 'ANULADA':
         enviar_correo_anulacion(instance.id)
-=======
-    Crea un perfil de RegistroUsuario si se crea un nuevo User de Django
-    y ese usuario aún no tiene un perfil asociado.
-    """
-    if created:
-        # Usa el try/except para manejar si el perfil ya fue creado por el proceso de registro.
-        try:
-            # Si instance.perfil ya existe, no hacemos nada (el perfil se creó desde la vista)
-            _ = instance.perfil
-        except RegistroUsuario.DoesNotExist:
-            # Si el perfil NO existe (típicamente si se crea desde el admin o shell)
-            RegistroUsuario.objects.create(
-                user=instance, # Enlaza el User correctamente
-                nombre=instance.username,
-                apellido="Admin" if instance.is_staff else "",
-                email=instance.email, # Usamos el email del User
-                # Generamos un teléfono falso único para que no falle la validación
-                telefono=f"000-{uuid.uuid4().hex[:8]}", 
-                activo=True
-            )
-            print(f"--- Perfil de cliente creado automáticamente para: {instance.username} ---")
->>>>>>> main
