@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orden de Logística - #{{ reserva.codigo_reserva }}</title>
+    <title>Orden de Logística - #{{ codigo_reserva }}</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -144,7 +144,7 @@
     <div class="container">
         <div class="header">
             <h1>🚚 ORDEN DE LOGÍSTICA</h1>
-            <p style="margin: 5px 0 0 0; opacity: 0.9;">Reserva: #{{ reserva.codigo_reserva }}</p>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Reserva: #{{ codigo_reserva }}</p>
         </div>
 
         <div class="content">
@@ -152,7 +152,7 @@
             <div class="info-box">
                 <div class="info-row">
                     <span class="label">Cliente:</span>
-                    <span class="value">{{ reserva.cliente.nombre }} {{ reserva.cliente.apellido }}</span>
+                    <span class="value">{{ cliente_nombre }} {{ cliente_apellido }}</span>
                 </div>
                 <div class="info-row">
                     <span class="label">Fecha:</span>
@@ -170,8 +170,8 @@
 
             <div style="margin-bottom: 25px;">
                 <span class="label">Dirección de Entrega:</span><br>
-                <span class="value" style="font-size: 15px;">{{ reserva.direccion_evento }}</span><br>
-                <a href="https://www.google.com/maps/search/?api=1&query={{ reserva.direccion_evento|urlencode }}"
+                <span class="value" style="font-size: 15px;">{{ direccion_evento }}</span><br>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ direccion_evento|urlencode }}"
                     class="maps-button">
                     📍 Abrir en Google Maps
                 </a>
@@ -205,7 +205,7 @@
             <div class="section-title">📝 Notas Especiales</div>
             <div
                 style="background-color: #fff9c4; padding: 15px; border-radius: 8px; font-style: italic; color: #856404; font-size: 14px;">
-                "{{ reserva.notas_especiales }}"
+                "{{ notas_especiales }}"
             </div>
             {% endif %}
         </div>

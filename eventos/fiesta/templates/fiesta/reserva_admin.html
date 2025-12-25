@@ -178,7 +178,7 @@
                 <div class="section-header">Información del Cliente</div>
                 <div class="data-row">
                     <span class="label">Nombre</span>
-                    <span class="value">{{ reserva.cliente.nombre }} {{ reserva.cliente.apellido }}</span>
+                    <span class="value">{{ cliente_nombre }} {{ cliente_apellido }}</span>
                 </div>
                 <div class="data-row">
                     <span class="label">Email</span>
@@ -192,7 +192,7 @@
                 <div class="section-header">Detalles del Evento</div>
                 <div class="data-row">
                     <span class="label">ID Reserva</span>
-                    <span class="value">#{{ reserva.codigo_reserva }}</span>
+                    <span class="value">#{{ codigo_reserva }}</span>
                 </div>
                 <div class="data-row">
                     <span class="label">Fecha</span>
@@ -200,7 +200,7 @@
                 </div>
                 <div class="data-row">
                     <span class="label">Ubicación</span>
-                    <span class="value">{{ reserva.direccion_evento }}</span>
+                    <span class="value">{{ direccion_evento }}</span>
                 </div>
 
                 <div class="section-header">Servicios Solicitados</div>

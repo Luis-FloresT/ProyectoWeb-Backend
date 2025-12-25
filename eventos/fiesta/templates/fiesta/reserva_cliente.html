@@ -189,15 +189,15 @@
         </div>
 
         <div class="content">
-            <p class="welcome-msg">Hola <strong>{{ reserva.cliente.nombre }}</strong>,</p>
+            <p class="welcome-msg">Hola <strong>{{ cliente_nombre }}</strong>,</p>
             <p>Hemos recibido tu solicitud de reserva. Para completarla, por favor realiza el pago correspondiente.</p>
 
             <div class="card">
-                <div class="reservation-id">Reserva #{{ reserva.codigo_reserva }}</div>
+                <div class="reservation-id">Reserva #{{ codigo_reserva }}</div>
                 <ul class="details-list">
                     <li><span class="label">📅 Fecha:</span> <span>{{ reserva.fecha_evento }}</span></li>
                     <li><span class="label">⏰ Hora:</span> <span>{{ reserva.fecha_inicio }}</span></li>
-                    <li><span class="label">📍 Dirección:</span> <span>{{ reserva.direccion_evento }}</span></li>
+                    <li><span class="label">📍 Dirección:</span> <span>{{ direccion_evento }}</span></li>
                     {% if reserva.metodo_pago == 'efectivo' %}
                     <li><span class="label">💳 Método:</span> <span>Pago en Efectivo (Día del evento)</span></li>
                     {% endif %}

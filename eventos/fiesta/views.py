@@ -192,12 +192,22 @@ def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
         print(f"❌ Error: No se encontró la reserva con ID {reserva_id}")
         return
 
-        # Obtener bancos activos para el correo
+        # Preparar contexto con datos limpios
         bancos = ConfiguracionPago.objects.filter(activo=True)
-
         dominio = "http://127.0.0.1:8000" # Cambiar por el dominio real en producción
+        
+        # Limpiar datos de reserva y cliente
+        cliente_nombre = (reserva.cliente.nombre or "").strip()
+        cliente_apellido = (reserva.cliente.apellido or "").strip()
+        codigo_reserva = (reserva.codigo_reserva or "").strip()
+        direccion_evento = (reserva.direccion_evento or "").strip()
+        
         context = {
             'reserva': reserva,
+            'cliente_nombre': cliente_nombre,
+            'cliente_apellido': cliente_apellido,
+            'codigo_reserva': codigo_reserva,
+            'direccion_evento': direccion_evento,
             'detalles': detalles_procesados,
             'bancos': bancos,
             'dominio': dominio,
@@ -208,14 +218,14 @@ def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
         html_cliente = render_to_string('fiesta/reserva_cliente.html', context)
         
         if reserva.metodo_pago == 'transferencia' or not reserva.metodo_pago:
-            asunto_cliente = f"📥 Reserva Recibida #{reserva.codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {reserva.cliente.nombre}, hemos recibido tu reserva {reserva.codigo_reserva}. Por favor realiza el pago para confirmarla."
+            asunto_cliente = f"📥 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
+            text_cliente = f"Hola {cliente_nombre}, hemos recibido tu reserva {codigo_reserva}. Por favor realiza el pago para confirmarla."
         elif reserva.metodo_pago == 'efectivo':
-            asunto_cliente = f"💵 Reserva Recibida #{reserva.codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {reserva.cliente.nombre}, tu reserva {reserva.codigo_reserva} ha sido recibida. El pago se realizará en efectivo."
+            asunto_cliente = f"💵 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
+            text_cliente = f"Hola {cliente_nombre}, tu reserva {codigo_reserva} ha sido recibida. El pago se realizará en efectivo."
         else: # Tarjeta
-            asunto_cliente = f"🎈 Reserva Confirmada #{reserva.codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {reserva.cliente.nombre}, ¡tu reserva {reserva.codigo_reserva} ha sido confirmada!"
+            asunto_cliente = f"🎈 Reserva Confirmada #{codigo_reserva} - Burbujitas de Colores"
+            text_cliente = f"Hola {cliente_nombre}, ¡tu reserva {codigo_reserva} ha sido confirmada!"
         
         msg_cliente = EmailMultiAlternatives(
             asunto_cliente, 
@@ -236,9 +246,9 @@ def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
         destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
         
         html_admin = render_to_string('fiesta/reserva_admin.html', context)
-        text_admin = f"Nueva reserva recibida: #{reserva.codigo_reserva} de {reserva.cliente.nombre} {reserva.cliente.apellido}."
+        text_admin = f"Nueva reserva recibida: #{codigo_reserva} de {cliente_nombre} {cliente_apellido}."
         
-        asunto_admin = f"🔔 NUEVA RESERVA - #{reserva.codigo_reserva} - ({reserva.cliente.nombre})"
+        asunto_admin = f"🔔 NUEVA RESERVA - #{codigo_reserva} - ({cliente_nombre})"
         msg_admin = EmailMultiAlternatives(
             asunto_admin, 
             text_admin, 
@@ -283,15 +293,27 @@ def enviar_correo_confirmacion(reserva_id):
                 descripcion = d.promocion.descripcion
             
             detalles_items.append({
-                'nombre': nombre,
-                'descripcion': descripcion,
+                'nombre': (nombre or "").strip(),
+                'descripcion': (descripcion or "").strip(),
                 'cantidad': d.cantidad,
                 'precio_unitario': float(d.precio_unitario),
                 'subtotal': float(d.subtotal)
             })
 
+        # Limpiar datos de reserva y cliente para el contexto (Join-Split para eliminar saltos internos)
+        cliente_nombre = " ".join(str(reserva.cliente.nombre or "").split())
+        cliente_apellido = (reserva.cliente.apellido or "").strip()
+        codigo_reserva = (reserva.codigo_reserva or "").strip()
+        direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
+        notas_especiales = " ".join(str(reserva.notas_especiales or "").split())
+
         context = {
             'reserva': reserva,
+            'cliente_nombre': cliente_nombre,
+            'cliente_apellido': cliente_apellido,
+            'codigo_reserva': codigo_reserva,
+            'direccion_evento': direccion_evento,
+            'notas_especiales': notas_especiales,
             'detalles': detalles_items,
             'dominio': "http://127.0.0.1:8000", # Cambiar en producción si es necesario
         }
@@ -299,11 +321,11 @@ def enviar_correo_confirmacion(reserva_id):
         # --- 1. ENVÍO AL CLIENTE (HTML Festivo Mejorado) ---
         try:
             html_cliente = render_to_string('fiesta/emails/cliente_exito_confirmacion.html', context)
-            asunto_cliente = f"✅ ¡Todo Listo! Evento Confirmado 🎉 - {reserva.codigo_reserva}"
+            asunto_cliente = f"✅ ¡Todo Listo! Evento Confirmado 🎉 - {codigo_reserva}"
             
             msg_cliente = EmailMultiAlternatives(
                 asunto_cliente,
-                f"Hola {reserva.cliente.nombre}, tu reserva #{reserva.codigo_reserva} ha sido APROBADA.",
+                f"Hola {cliente_nombre}, tu reserva #{codigo_reserva} ha sido APROBADA.",
                 settings.DEFAULT_FROM_EMAIL,
                 [reserva.cliente.email]
             )
@@ -317,11 +339,11 @@ def enviar_correo_confirmacion(reserva_id):
         try:
             destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
             html_admin = render_to_string('fiesta/reserva_admin_logistica.html', context)
-            asunto_admin = f"🚚 LOGÍSTICA: Orden de Preparación - {reserva.codigo_reserva}"
+            asunto_admin = f"🚚 LOGÍSTICA: Orden de Preparación - {codigo_reserva}"
             
             msg_admin = EmailMultiAlternatives(
                 asunto_admin,
-                f"Nueva orden de logística para la reserva #{reserva.codigo_reserva}",
+                f"Nueva orden de logística para la reserva #{codigo_reserva}",
                 settings.DEFAULT_FROM_EMAIL,
                 [destinatario_admin]
             )
@@ -349,8 +371,11 @@ def enviar_correo_anulacion(reserva_id):
     """
     try:
         reserva = Reserva.objects.select_related('cliente').get(id=reserva_id)
-        asunto = f"❌ Reserva Anulada - #{reserva.codigo_reserva} - Burbujitas de Colores"
-        mensaje = f"Hola {reserva.cliente.nombre}, te informamos que tu reserva #{reserva.codigo_reserva} ha sido anulada. Si tienes dudas, por favor contáctanos."
+        cliente_nombre = (reserva.cliente.nombre or "").strip()
+        codigo_reserva = (reserva.codigo_reserva or "").strip()
+        
+        asunto = f"❌ Reserva Anulada - #{codigo_reserva} - Burbujitas de Colores"
+        mensaje = f"Hola {cliente_nombre}, te informamos que tu reserva #{codigo_reserva} ha sido anulada. Si tienes dudas, por favor contáctanos."
         
         send_mail(asunto, mensaje, settings.DEFAULT_FROM_EMAIL, [reserva.cliente.email])
         print(f"📉 Correo de ANULACIÓN enviado al cliente: {reserva.cliente.email}")
