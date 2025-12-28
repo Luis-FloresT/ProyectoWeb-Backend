@@ -2,12 +2,11 @@
 
 API Django REST Framework para gestionar fiestas infantiles.
 
-## Instalación
-
+### Paso 1: Instalación
 ```bash
 pip install -r requirements.txt
 ```
-### Paso 2: Descargar entorno que tendra la api 
+###  Descargar entorno que tendra la api 
 ```bash
 - `pip install django-environ`
 ```
