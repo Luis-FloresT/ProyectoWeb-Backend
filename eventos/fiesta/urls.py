@@ -8,7 +8,8 @@ from .views import (
     PagoViewSet, CancelacionViewSet,
     # Nuevas importaciones del carrito (ACTUALIZADO)
     CarritoViewSet, agregar_al_carrito, confirmar_carrito, ItemCarritoViewSet,
-    checkout_pago, ConfiguracionPagoViewSet
+    checkout_pago, ConfiguracionPagoViewSet,
+    PasswordResetRequestView, PasswordResetConfirmView
 )
 
 router = DefaultRouter()
@@ -51,6 +52,10 @@ urlpatterns = [
 
     # 3. Pago (POST): Seleccionar método y subir comprobante
     path('checkout-pago/<int:reserva_id>/', checkout_pago, name='checkout_pago'),
+
+    # 4. Recuperación de Contraseña
+    path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path('', include(router.urls)),
 ]

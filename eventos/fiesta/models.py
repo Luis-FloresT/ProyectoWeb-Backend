@@ -59,6 +59,33 @@ class EmailVerificationToken(models.Model):
         return f"Token for {self.user.username} - {self.token[:10]}..."
 
 
+class PasswordResetToken(models.Model):
+    """
+    Token UUID para restablecimiento de contraseña.
+    Expira en 1 hora.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "Token de Restablecimiento de Contraseña"
+        verbose_name_plural = "Tokens de Restablecimiento de Contraseña"
+        db_table = 'password_reset_token'
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=1)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"Reset Token for {self.user.email} - {self.token}"
+
+
 # ==========================================
 # 2. CATÁLOGO (Servicios, Combos, Promos)
 # ==========================================

@@ -45,7 +45,7 @@ from .models import (
     RegistroUsuario, EmailVerificationToken,
     Promocion, Categoria, Servicio, Combo, ComboServicio,
     HorarioDisponible, Reserva, DetalleReserva, Pago, Cancelacion,
-    Carrito, ItemCarrito, ConfiguracionPago
+    Carrito, ItemCarrito, ConfiguracionPago, PasswordResetToken
 )
 
 from .serializers import (
@@ -610,6 +610,104 @@ class VerificarEmailView(APIView):
         return render(request, 'emails/verification_success.html')
 
 
+class PasswordResetRequestView(APIView):
+    """
+    Recibe un email y envía un enlace de recuperación si el usuario existe.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({'message': 'El email es obligatorio'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email=email).first()
+        
+        # Por seguridad, no revelamos si el usuario existe o no
+        if user:
+            # Eliminar tokens anteriores activos para este usuario (opcional pero recomendado)
+            PasswordResetToken.objects.filter(user=user).delete()
+            
+            # Crear nuevo token (el UUID se genera solo)
+            reset_token = PasswordResetToken.objects.create(user=user)
+            
+            # Preparar correo
+            # Cambiar por dominio real en producción
+            link_recuperacion = f"http://localhost:5173/reset-password/{reset_token.token}"
+            context = {
+                'user': user,
+                'link_recuperacion': link_recuperacion
+            }
+            
+            try:
+                html_message = render_to_string('emails/password_reset_email.html', context)
+                plain_message = f"Hola {user.username}, recupera tu contraseña aquí: {link_recuperacion}"
+                
+                # Extraer remitente
+                import re
+                from_email_raw = settings.DEFAULT_FROM_EMAIL
+                email_match = re.search(r'<(.+?)>', from_email_raw)
+                sender_email = email_match.group(1) if email_match else from_email_raw
+
+                send_mail(
+                    subject='🔑 Recuperación de Contraseña - Burbujitas de Colores',
+                    message=plain_message,
+                    from_email=sender_email,
+                    recipient_list=[email],
+                    html_message=html_message,
+                    fail_silently=False
+                )
+                print(f"✅ CORREO DE RECUPERACIÓN ENVIADO A: {email}")
+            except Exception as e:
+                print(f"❌ ERROR AL ENVIAR CORREO DE RECUPERACIÓN: {str(e)}")
+                # No lanzamos error al usuario para persistir el mensaje genérico
+
+        return Response({
+            'message': 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña en breve.'
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    Valida el token y actualiza la contraseña del usuario.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token_uuid = request.data.get('token')
+        nueva_clave = request.data.get('password')
+
+        if not token_uuid or not nueva_clave:
+            return Response({'message': 'Token y contraseña son obligatorios'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token_uuid)
+            
+            # 1. Verificar expiración
+            if reset_token.is_expired():
+                reset_token.delete()
+                return Response({'message': 'El enlace ha expirado. Por favor solicita uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 2. Actualizar contraseña de forma atómica
+            with transaction.atomic():
+                user = reset_token.user
+                user.set_password(nueva_clave)
+                user.save()
+                
+                # 3. Eliminar token tras el éxito
+                reset_token.delete()
+            
+            return Response({'message': 'Tu contraseña ha sido actualizada correctamente.'}, status=status.HTTP_200_OK)
+
+        except (PasswordResetToken.DoesNotExist, ValidationError):
+            return Response({'message': 'El enlace es inválido o ya ha sido utilizado.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"ERROR EN RESET PASSWORD: {str(e)}")
+            return Response({'message': 'Ocurrió un error al procesar tu solicitud.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 class RegistroUsuarioViewSet(viewsets.ModelViewSet):
@@ -716,13 +814,15 @@ class ReservaViewSet(viewsets.ModelViewSet):
             except HorarioDisponible.DoesNotExist:
                 return Response({'error': 'El horario seleccionado no está disponible'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Capacidad del horario
-            reservas_en_horario = Reserva.objects.filter(
-                horario=horario,
-                estado__in=['APROBADA', 'PENDIENTE']
-            ).count()
-            if reservas_en_horario >= horario.capacidad_reserva:
-                return Response({'error': 'Este horario ya está lleno. Por favor selecciona otro'}, status=status.HTTP_400_BAD_REQUEST)
+                # Blindaje: Un solo evento por día/horario
+                overlap = Reserva.objects.filter(
+                    fecha_evento=horario.fecha,
+                    horario=horario,
+                    estado__in=['APROBADA', 'PENDIENTE']
+                ).exists()
+                
+                if overlap:
+                    return Response({'error': 'Este horario ya está reservado. Por favor selecciona otro día u hora.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Alinear fecha_evento y hora_inicio con horario
             data['fecha_evento'] = horario.fecha
@@ -924,8 +1024,16 @@ def confirmar_carrito(request):
         horario = HorarioDisponible.objects.filter(fecha=fecha_evento).first()
         
         if not horario:
-            # Si no hay horarios creados para ese día, no se puede reservar
             return Response({'error': f'No hay disponibilidad abierta para el {fecha_evento}'}, status=400)
+
+        # Blindaje en confirmar_carrito
+        overlap_carrito = Reserva.objects.filter(
+            fecha_evento=fecha_evento,
+            estado__in=['APROBADA', 'PENDIENTE']
+        ).exists()
+        
+        if overlap_carrito:
+            return Response({'error': 'Lo sentimos, este día ya ha sido reservado por otro usuario mientras procesabas tu pedido.'}, status=400)
 
         # Transacción Atómica: O se guarda todo (reserva + detalles) o nada.
         with transaction.atomic():
