@@ -8,7 +8,7 @@ pip install -r requirements.txt
 ```
 ###  Descargar entorno que tendra la api 
 ```bash
-- `pip install django-environ`
+pip install django-environ
 ```
 
 ### Paso 2: Crear base de datos en PostgreSQL
