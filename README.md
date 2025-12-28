@@ -8,6 +8,10 @@ API Django REST Framework para gestionar fiestas infantiles.
 ```bash
 pip install -r requirements.txt
 ```
+### Paso 2: Descargar entorno que tendra la api 
+```bash
+- `pip install django-environ`
+```
 
 ### Paso 2: Crear base de datos en PostgreSQL
 Solo necesitas crear una base de datos vacía en PostgreSQL (ejemplo: `sandia`). 
@@ -20,6 +24,9 @@ cd eventos
 
 ### Paso 4: Aplicar migraciones de base de datos
 ```bash
+python manage.py makemigrations
+```
+```bash
 python manage.py migrate
 ```
 
@@ -30,21 +37,25 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### Paso 6: Configurar correo (Brevo)
+### Paso 6: Configuración de Variables (.env)
 
-Para que el envío de correos funcione, debes configurar la API Key de Brevo como variable de entorno.
+Crea un archivo .env en la raíz del proyecto (junto a manage.py) para configurar las credenciales de forma segura.
+Contenido de ejemplo:
 
-Windows (PowerShell):
-```powershell
-$env:BREVO_API_KEY = "TU_API_KEY_DE_BREVO"
-```
+# --- SEGURIDAD ---
+SECRET_KEY=!*
+DEBUG=True
 
-Linux/Mac (bash):
-```bash
-export BREVO_API_KEY="TU_API_KEY_DE_BREVO"
-```
+# --- BASE DE DATOS (PostgreSQL) ---
+DB_NAME=sandia
+DB_USER=postgres
+DB_PASSWORD=tu_contraseña_aquí
+DB_HOST=localhost
+DB_PORT=5432
 
-Si no configuras `BREVO_API_KEY`, el backend usa el backend de consola y verás el contenido del correo en la terminal (modo desarrollo).
+# --- CORREO (BREVO) ---
+BREVO_API_KEY=tu_api_key_aquí
+
 
 ### Paso 7: Iniciar servidor
 ```bash
@@ -67,7 +78,7 @@ Panel de administración en http://127.0.0.1:8000/admin/
 - Asegurarse de NO commitear claves: en `eventos/settings.py` debe estar `BREVO_API_KEY = os.getenv('BREVO_API_KEY', '')`
 - Ejecutar:
 	- `pip install -r requirements.txt`
-	- `pip install django-anymail`
+	- `pip install django-environ`
 	- `cd eventos`
 	- `python manage.py migrate`
 	- `python manage.py runserver`
