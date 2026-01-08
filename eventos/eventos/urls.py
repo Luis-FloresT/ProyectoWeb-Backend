@@ -2,12 +2,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from fiesta.views import home  
+# from fiesta.views import home  <-- COMENTA ESTO PARA QUE NO DE ERROR
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('fiesta.urls')),  # <- Esto es CRUCIAL
-    path('', home, name='home'), 
+
 ]
 
 # Servir archivos media en desarrollo
