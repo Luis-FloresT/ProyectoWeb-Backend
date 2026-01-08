@@ -13,8 +13,6 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS, AllowAny, I
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication
 
-
-
 from rest_framework.authtoken.models import Token
 
 # 3. Django Library Imports
@@ -34,13 +32,6 @@ from django.db import IntegrityError
 
 
 # 4. Local App Imports (Models and Serializers)
-
-
-
-
-
-
-# 4. Local App Imports (Models and Serializers)
 from .models import (
     RegistroUsuario, EmailVerificationToken,
     Promocion, Categoria, Servicio, Combo, ComboServicio,
@@ -54,8 +45,6 @@ from .serializers import (
     DetalleReservaSerializer, PagoSerializer, CancelacionSerializer,
     CarritoSerializer, ItemCarritoSerializer, ConfiguracionPagoSerializer
 )
-
-
 
 
 def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
@@ -192,26 +181,26 @@ def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
         print(f"❌ Error: No se encontró la reserva con ID {reserva_id}")
         return
 
-        # Preparar contexto con datos limpios
-        bancos = ConfiguracionPago.objects.filter(activo=True)
-        dominio = "http://127.0.0.1:8000" # Cambiar por el dominio real en producción
-        
-        # Limpiar datos de reserva y cliente
-        cliente_nombre = (reserva.cliente.nombre or "").strip()
-        cliente_apellido = (reserva.cliente.apellido or "").strip()
-        codigo_reserva = (reserva.codigo_reserva or "").strip()
-        direccion_evento = (reserva.direccion_evento or "").strip()
-        
-        context = {
-            'reserva': reserva,
-            'cliente_nombre': cliente_nombre,
-            'cliente_apellido': cliente_apellido,
-            'codigo_reserva': codigo_reserva,
-            'direccion_evento': direccion_evento,
-            'detalles': detalles_procesados,
-            'bancos': bancos,
-            'dominio': dominio,
-        }
+    # Preparar contexto con datos limpios
+    bancos = ConfiguracionPago.objects.filter(activo=True)
+    dominio = "https://proyectoweb-backend-239k.onrender.com" # Cambiado a URL de producción
+    
+    # Limpiar datos de reserva y cliente
+    cliente_nombre = (reserva.cliente.nombre or "").strip()
+    cliente_apellido = (reserva.cliente.apellido or "").strip()
+    codigo_reserva = (reserva.codigo_reserva or "").strip()
+    direccion_evento = (reserva.direccion_evento or "").strip()
+    
+    context = {
+        'reserva': reserva,
+        'cliente_nombre': cliente_nombre,
+        'cliente_apellido': cliente_apellido,
+        'codigo_reserva': codigo_reserva,
+        'direccion_evento': direccion_evento,
+        'detalles': detalles_procesados,
+        'bancos': bancos,
+        'dominio': dominio,
+    }
 
     # --- 1. Correo para el CLIENTE ---
     try:
@@ -277,7 +266,6 @@ def enviar_correo_confirmacion(reserva_id):
         queryset_detalles = reserva.detalles.select_related('servicio', 'combo', 'promocion').all()
         
         detalles_items = []
-        detalles_items = []
         for d in queryset_detalles:
             nombre = "Item"
             descripcion = ""
@@ -315,7 +303,7 @@ def enviar_correo_confirmacion(reserva_id):
             'direccion_evento': direccion_evento,
             'notas_especiales': notas_especiales,
             'detalles': detalles_items,
-            'dominio': "http://127.0.0.1:8000", # Cambiar en producción si es necesario
+            'dominio': "https://proyectoweb-backend-239k.onrender.com", # Cambiado a URL de producción
         }
 
         # --- 1. ENVÍO AL CLIENTE (HTML Festivo Mejorado) ---
@@ -359,10 +347,6 @@ def enviar_correo_confirmacion(reserva_id):
         print(f"❌ Error general en enviar_correo_confirmacion: {str(e)}")
         import traceback
         traceback.print_exc()
-        
-    except Exception as e:
-        print(f"❌ Error al enviar correo de confirmación: {str(e)}")
-        traceback.print_exc()
 
 
 def enviar_correo_anulacion(reserva_id):
@@ -383,11 +367,8 @@ def enviar_correo_anulacion(reserva_id):
         print(f"❌ Error al enviar correo de anulación: {str(e)}")
 
 
-
-
-
-def home(request):
-    return redirect('http://localhost:5173/login')
+# def home(request):
+#     return redirect('http://localhost:5173/login')
 
 # ==========================================
 # 1. AUTENTICACIÓN
@@ -426,9 +407,6 @@ class LoginView(APIView):
             'is_admin': user_obj.is_staff,
             'token': token.key
         }, status=status.HTTP_200_OK)
-
-
-
 
 
 class RegistroUsuarioView(APIView):
@@ -504,7 +482,10 @@ class RegistroUsuarioView(APIView):
                 EmailVerificationToken.objects.create(user=user, token=token)
 
                 # 9️⃣ Preparar correo de verificación
-                link_verificacion = f"http://127.0.0.1:8000/api/verificar-email/?token={token}"
+                # CAMBIO: URL de producción del backend
+                domain = "https://proyectoweb-backend-239k.onrender.com"
+                link_verificacion = f"{domain}/api/verificar-email/?token={token}"
+                
                 context = {
                     'nombre': nombre,
                     'link_verificacion': link_verificacion
@@ -530,9 +511,6 @@ class RegistroUsuarioView(APIView):
                     print(f"✅ CORREO HTML ENVIADO A: {email}")
                 except Exception as e:
                     # Loggeamos el error pero no revertimos la creación del usuario si el correo falla
-                    # OJO: Si queremos que el registro falle si el correo no se envía, 
-                    # deberíamos mover este bloque fuera o lanzar una excepción aquí.
-                    # Por ahora lo dejamos como un log para no frustrar al usuario si el servidor de correo falla.
                     print(f"❌ ERROR AL ENVIAR CORREO: {str(e)}")
 
             # --- FIN DE TRANSACCIÓN ATÓMICA ---
@@ -633,8 +611,10 @@ class PasswordResetRequestView(APIView):
             reset_token = PasswordResetToken.objects.create(user=user)
             
             # Preparar correo
-            # Cambiar por dominio real en producción
-            link_recuperacion = f"http://localhost:5173/reset-password/{reset_token.token}"
+            # CAMBIO: URL de producción del frontend
+            frontend_domain = "https://proyectoweb-fronted.onrender.com"
+            link_recuperacion = f"{frontend_domain}/reset-password/{reset_token.token}"
+            
             context = {
                 'user': user,
                 'link_recuperacion': link_recuperacion
@@ -706,8 +686,6 @@ class PasswordResetConfirmView(APIView):
         except Exception as e:
             print(f"ERROR EN RESET PASSWORD: {str(e)}")
             return Response({'message': 'Ocurrió un error al procesar tu solicitud.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 
 class RegistroUsuarioViewSet(viewsets.ModelViewSet):
