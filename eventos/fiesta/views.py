@@ -1205,3 +1205,15 @@ class ItemCarritoViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return ItemCarrito.objects.filter(carrito__cliente__email=self.request.user.email)
         return ItemCarrito.objects.none()
+# --- ⚠️ BORRAR ESTO DESPUÉS DE USAR ⚠️ ---
+def crear_admin_temporal(request):
+    try:
+        # Verifica si ya existe para no dar error
+        if not User.objects.filter(username='Nancy').exists():
+            # CREA EL SUPERUSUARIO: Nancy / Nancy2002
+            User.objects.create_superuser('Nancy', 'nancy@admin.com', 'Nancy2002')
+            return HttpResponse("<h1>¡LISTO! 👑</h1><p>Superusuario <b>Nancy</b> creado exitosamente.<br>Contraseña: <b>Nancy2002</b><br><br><a href='/admin'>👉 Ir al Login</a></p>")
+        else:
+            return HttpResponse("<h1>⚠️ Ya existe</h1><p>El usuario 'Nancy' ya existe en la base de datos.</p><br><a href='/admin'>Ir al Login</a>")
+    except Exception as e:
+        return HttpResponse(f"<h1>Error</h1><p>{str(e)}</p>")
