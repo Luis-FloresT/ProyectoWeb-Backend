@@ -1207,21 +1207,35 @@ class ItemCarritoViewSet(viewsets.ModelViewSet):
         return ItemCarrito.objects.none()
 # --- ⚠️ BORRAR ESTO DESPUÉS DE USAR ⚠️ ---
 # --- TRUCO PARA CORREGIR CONTRASEÑA ---
+# --- TRUCO PARA FORZAR CAMBIO DE CONTRASEÑA ---
 def crear_admin_temporal(request):
     try:
-        # Busca al usuario 'Nancy' o lo crea si no existe
-        user, created = User.objects.get_or_create(username='Nancy', defaults={
-            'email': 'nancy@admin.com'
-        })
+        # 1. Busca al usuario 'Nancy'. Si no existe, lo crea.
+        user, created = User.objects.get_or_create(
+            username='Nancy',
+            defaults={'email': 'nancy@admin.com'}
+        )
         
-        # FUERZA la contraseña y permisos (aunque ya exista)
-        user.set_password('Nancy2002')
+        # 2. FUERZA la contraseña y los permisos (Esto arregla el problema)
+        user.set_password('Nancy2002')  # <--- Aquí asignamos la clave correcta
         user.is_staff = True
         user.is_superuser = True
+        user.is_active = True
         user.save()
         
-        accion = "creado" if created else "actualizado"
-        return HttpResponse(f"<h1>¡ARREGLADO! 🔧</h1><p>El usuario <b>Nancy</b> ha sido {accion}.<br>La contraseña ahora es SEGURO: <b>Nancy2002</b><br><br><a href='/admin'>👉 Probar Login de nuevo</a></p>")
+        estado = "CREADO" if created else "ACTUALIZADO"
+        
+        return HttpResponse(f"""
+            <div style='font-family: sans-serif; text-align: center; padding: 50px;'>
+                <h1 style='color: green;'>¡ARREGLADO! 🔧</h1>
+                <p>El usuario <b>Nancy</b> ha sido <b>{estado}</b> exitosamente.</p>
+                <p>La contraseña se ha restablecido a: <b>Nancy2002</b></p>
+                <br>
+                <a href='/admin' style='background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>
+                    👉 Ir a Iniciar Sesión Ahora
+                </a>
+            </div>
+        """)
 
     except Exception as e:
         return HttpResponse(f"<h1>Error</h1><p>{str(e)}</p>")
