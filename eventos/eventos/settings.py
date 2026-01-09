@@ -1,6 +1,7 @@
 import os
 import environ
 from pathlib import Path
+import dj_database_url  # Importante para la base de datos en la nube
 
 # 1. DEFINIR BASE_DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,8 +16,7 @@ environ.Env.read_env(env_path)
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 
-# 4. CONFIGURACIÓN DE BREVO (ANYMAIL) - CORREGIDO
-# Forzamos el uso de Brevo. Si la API KEY no existe, el sistema dará error avisándote.
+# 4. CONFIGURACIÓN DE BREVO (ANYMAIL)
 BREVO_API_KEY = env('BREVO_API_KEY')
 
 EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
@@ -25,11 +25,11 @@ ANYMAIL = {
 }
 
 # 5. CONFIGURACIÓN DEL REMITENTE
-# Asegúrate de que este correo esté verificado en el panel de Brevo
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL')
 
-ALLOWED_HOSTS = []
+# Permitir todos los hosts para evitar errores en Render
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -55,9 +55,11 @@ REST_FRAMEWORK = {
     ],
 }
 
+# MIDDLEWARE CORREGIDO (Orden correcto y sin duplicados)
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware', 
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # <--- Vital para Render
+    'corsheaders.middleware.CorsMiddleware',       # <--- Antes de respuestas comunes
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -135,7 +137,9 @@ USE_TZ = True
 
 # Static and Media files
 STATIC_URL = 'static/'
+# Carpeta donde se recolectarán los estáticos en producción
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -143,3 +147,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Almacenamiento optimizado de estáticos para producción (WhiteNoise)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

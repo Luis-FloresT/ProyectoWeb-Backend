@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    home, LoginView, RegistroUsuarioView, VerificarEmailView,
+    # home,  <-- COMENTADO PARA EVITAR EL REDIRECT A LOCALHOST
+    LoginView, RegistroUsuarioView, VerificarEmailView,
     RegistroUsuarioViewSet, CategoriaViewSet, PromocionViewSet, 
     ServicioViewSet, ComboViewSet, ComboServicioViewSet, 
     HorarioDisponibleViewSet, ReservaViewSet, DetalleReservaViewSet, 
@@ -37,7 +38,9 @@ router.register(r'items-carrito', ItemCarritoViewSet, basename='item-carrito')
 router.register(r'bancos', ConfiguracionPagoViewSet, basename='configuracion-pago')
 
 urlpatterns = [
-    path('', home, name='home'),
+    # ❌ ELIMINADA LA RUTA QUE CAUSABA EL ERROR:
+    # path('', home, name='home'),
+
     path('login/', LoginView.as_view(), name='login'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro_usuario'),
     path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),
@@ -57,5 +60,6 @@ urlpatterns = [
     path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
+    # ✅ ESTA RUTA AHORA ES LA PRINCIPAL:
     path('', include(router.urls)),
 ]
