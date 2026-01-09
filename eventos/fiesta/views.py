@@ -1,9 +1,20 @@
 # 1. Standard Python Library Imports
 import json
 import random # Para generar códigos de reserva
+import re  # Para normalizar HTML en emails
 import smtplib
 import traceback
 import uuid
+import threading # Para correos asíncronos
+
+def run_in_background(target, *args, **kwargs):
+    """
+    Ejecuta una función en un hilo separado para no bloquear la respuesta.
+    Ideal para envío de correos.
+    """
+    t = threading.Thread(target=target, args=args, kwargs=kwargs)
+    t.daemon = True
+    t.start()
 
 # 2. Third-Party Library Imports (Django REST Framework)
 from rest_framework.views import APIView
@@ -154,233 +165,247 @@ def enviar_correo(asunto, mensaje, destinatario, proveedor='gmail'):
 def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
     """
     Envía dos correos de notificación: uno al cliente y otro al administrador.
-    Permite pasar los detalles ya procesados para evitar problemas de retardo en la base de datos.
+    Se ejecuta en un hilo secundario para evitar bloqueos.
     """
-    try:
-        # Recuperar la reserva con select_related para el cliente
-        reserva = Reserva.objects.select_related('cliente').get(id=reserva_id)
+    def _tarea_en_hilo(rid, detalles):
+        try:
+            # Recuperar la reserva con select_related para el cliente
+            # Es necesario volver a importar/filtrar porque estamos en otro hilo,
+            # pero pasamos el ID para asegurar consistencia.
+            reserva = Reserva.objects.select_related('cliente').get(id=rid)
 
-        # Usar datos en memoria si se proporcionan, de lo contrario buscar en DB
-        if detalles_previa_carga is not None:
-            detalles_procesados = detalles_previa_carga
-        else:
-            detalles_procesados = []
-            # Fallback forzada si no hay datos en memoria
-            for d in reserva.detalles.select_related('servicio', 'combo', 'promocion').all():
-                nombre_item = "Item no especificado"
-                if d.combo:
-                    nombre_item = d.combo.nombre
-                elif d.servicio:
-                    nombre_item = d.servicio.nombre
-                elif d.promocion:
-                    nombre_item = d.promocion.nombre
+            # Usar datos en memoria si se proporcionan, de lo contrario buscar en DB
+            if detalles is not None:
+                detalles_procesados = detalles
+            else:
+                detalles_procesados = []
+                # Fallback forzada si no hay datos en memoria
+                for d in reserva.detalles.select_related('servicio', 'combo', 'promocion').all():
+                    nombre_item = "Item no especificado"
+                    if d.combo:
+                        nombre_item = d.combo.nombre
+                    elif d.servicio:
+                        nombre_item = d.servicio.nombre
+                    elif d.promocion:
+                        nombre_item = d.promocion.nombre
+
+                    detalles_procesados.append({
+                        'nombre': (nombre_item or "").strip(),
+                        'cantidad': d.cantidad,
+                        'subtotal': d.subtotal
+                    })
+
+            # Depuración en consola
+            print(f"--- DEBUG CORREO ---")
+            print(f"Reserva ID: {reserva.id}")
+            print(f"¿Tiene detalles?: {len(detalles_procesados) > 0}")
+            for dp in detalles_procesados:
+                print(f"Item Procesado: {dp['nombre']}")
+
+            # Preparar contexto con datos limpios
+            bancos = ConfiguracionPago.objects.filter(activo=True)
+            dominio = "http://127.0.0.1:8000" # Cambiar por el dominio real en producción
+
+            # Limpiar datos de reserva y cliente (usar join/split para eliminar newlines internos)
+            cliente_nombre = " ".join(str(reserva.cliente.nombre or "").split())
+            cliente_apellido = " ".join(str(reserva.cliente.apellido or "").split())
+            codigo_reserva = (reserva.codigo_reserva or "").strip()
+            direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
+
+            context = {
+                'reserva': reserva,
+                'cliente_nombre': cliente_nombre,
+                'cliente_apellido': cliente_apellido,
+                'codigo_reserva': codigo_reserva,
+                'direccion_evento': direccion_evento,
+                'detalles': detalles_procesados,
+                'bancos': bancos,
+                'dominio': dominio,
+            }
+
+            # --- 1. Correo para el CLIENTE ---
+            try:
+                html_cliente = render_to_string('fiesta/reserva_cliente.html', context)
+
+                if reserva.metodo_pago == 'transferencia' or not reserva.metodo_pago:
+                    asunto_cliente = f"📥 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
+                    text_cliente = f"Hola {cliente_nombre}, hemos recibido tu reserva {codigo_reserva}. Por favor realiza el pago para confirmarla."
+                elif reserva.metodo_pago == 'efectivo':
+                    asunto_cliente = f"💵 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
+                    text_cliente = f"Hola {cliente_nombre}, tu reserva {codigo_reserva} ha sido recibida. El pago se realizará en efectivo."
+                else: # Tarjeta
+                    asunto_cliente = f"🎈 Reserva Confirmada #{codigo_reserva} - Burbujitas de Colores"
+                    text_cliente = f"Hola {cliente_nombre}, ¡tu reserva {codigo_reserva} ha sido confirmada!"
+
+                msg_cliente = EmailMultiAlternatives(
+                    asunto_cliente,
+                    text_cliente,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [reserva.cliente.email]
+                )
+                msg_cliente.attach_alternative(html_cliente, "text/html")
+                msg_cliente.send(fail_silently=False)
+                print(f"✅ Correo enviado al cliente: {reserva.cliente.email}")
+            except Exception as e:
+                print(f"❌ Error al enviar correo al cliente ({reserva.cliente.email}): {str(e)}")
+                traceback.print_exc()
+
+            # --- 2. Correo para el ADMINISTRADOR ---
+            try:
+                destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
+                html_admin = render_to_string('fiesta/reserva_admin.html', context)
                 
-                detalles_procesados.append({
-                    'nombre': nombre_item,
-                    'cantidad': d.cantidad,
-                    'subtotal': d.subtotal
-                })
+                # ULTRA-LIMPIO: Normalizar HTML para eliminar newlines
+                html_admin = re.sub(r'\s+', ' ', html_admin)
+                
+                # ULTRA-LIMPIO: Limpiar asunto y texto plano
+                asunto_admin = " ".join(f"🔔 Nueva Reserva #{codigo_reserva} - {cliente_nombre} {cliente_apellido}".split())
+                text_admin = " ".join(f"Se ha recibido una nueva reserva con código {codigo_reserva} de {cliente_nombre} {cliente_apellido}.".split())
 
-        # Depuración en consola
-        print(f"--- DEBUG CORREO ---")
-        print(f"Reserva ID: {reserva.id}")
-        print(f"¿Tiene detalles?: {len(detalles_procesados) > 0}")
-        for dp in detalles_procesados:
-            print(f"Item Procesado: {dp['nombre']}")
+                msg_admin = EmailMultiAlternatives(
+                    subject=asunto_admin,  # Sin newlines
+                    body=text_admin,  # Sin newlines
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[destinatario_admin]
+                )
+                msg_admin.attach_alternative(html_admin, "text/html")
+                msg_admin.send(fail_silently=False)
+                print(f"📧 Correo enviado al administrador: {destinatario_admin}")
+            except Exception as e:
+                print(f"❌ Error al enviar correo al administrador ({destinatario_admin}): {str(e)}")
+                traceback.print_exc()
 
-    except Reserva.DoesNotExist:
-        print(f"❌ Error: No se encontró la reserva con ID {reserva_id}")
-        return
+        except Reserva.DoesNotExist:
+            print(f"❌ Error: No se encontró la reserva con ID {reserva_id}")
+        except Exception as e:
+            print(f"❌ Error general en enviar_correo_reserva: {str(e)}")
+            traceback.print_exc()
 
-        # Preparar contexto con datos limpios
-        bancos = ConfiguracionPago.objects.filter(activo=True)
-        dominio = "http://127.0.0.1:8000" # Cambiar por el dominio real en producción
-        
-        # Limpiar datos de reserva y cliente
-        cliente_nombre = (reserva.cliente.nombre or "").strip()
-        cliente_apellido = (reserva.cliente.apellido or "").strip()
-        codigo_reserva = (reserva.codigo_reserva or "").strip()
-        direccion_evento = (reserva.direccion_evento or "").strip()
-        
-        context = {
-            'reserva': reserva,
-            'cliente_nombre': cliente_nombre,
-            'cliente_apellido': cliente_apellido,
-            'codigo_reserva': codigo_reserva,
-            'direccion_evento': direccion_evento,
-            'detalles': detalles_procesados,
-            'bancos': bancos,
-            'dominio': dominio,
-        }
-
-    # --- 1. Correo para el CLIENTE ---
-    try:
-        html_cliente = render_to_string('fiesta/reserva_cliente.html', context)
-        
-        if reserva.metodo_pago == 'transferencia' or not reserva.metodo_pago:
-            asunto_cliente = f"📥 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, hemos recibido tu reserva {codigo_reserva}. Por favor realiza el pago para confirmarla."
-        elif reserva.metodo_pago == 'efectivo':
-            asunto_cliente = f"💵 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, tu reserva {codigo_reserva} ha sido recibida. El pago se realizará en efectivo."
-        else: # Tarjeta
-            asunto_cliente = f"🎈 Reserva Confirmada #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, ¡tu reserva {codigo_reserva} ha sido confirmada!"
-        
-        msg_cliente = EmailMultiAlternatives(
-            asunto_cliente, 
-            text_cliente, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [reserva.cliente.email]
-        )
-        msg_cliente.attach_alternative(html_cliente, "text/html")
-        msg_cliente.send(fail_silently=False)
-        print(f"✅ Correo enviado al cliente: {reserva.cliente.email}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo al cliente ({reserva.cliente.email}): {str(e)}")
-        traceback.print_exc()
-
-    # --- 2. Correo para el ADMINISTRADOR ---
-    try:
-        # Se asume que settings.SERVER_EMAIL está configurado
-        destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
-        
-        html_admin = render_to_string('fiesta/reserva_admin.html', context)
-        text_admin = f"Nueva reserva recibida: #{codigo_reserva} de {cliente_nombre} {cliente_apellido}."
-        
-        asunto_admin = f"🔔 NUEVA RESERVA - #{codigo_reserva} - ({cliente_nombre})"
-        msg_admin = EmailMultiAlternatives(
-            asunto_admin, 
-            text_admin, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [destinatario_admin]
-        )
-        msg_admin.attach_alternative(html_admin, "text/html")
-        msg_admin.send(fail_silently=False)
-        print(f"✅ Correo de aviso enviado al administrador: {destinatario_admin}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo al administrador: {str(e)}")
-        traceback.print_exc()
+    # Lanzar hilo en background
+    run_in_background(_tarea_en_hilo, reserva_id, detalles_previa_carga)
 
 
 def enviar_correo_confirmacion(reserva_id):
     """
     Envía un correo festivo al cliente y un aviso profesional de logística al admin.
-    Ambos correos ahora tienen un diseño premium y lista detallada de productos.
+    Ejecución asíncrona (Thread).
     """
-    try:
-        # Recuperar reserva con relaciones necesarias
-        reserva = Reserva.objects.select_related('cliente').get(id=reserva_id)
-        
-        # 1. Extraer detalles para el contexto (Garantizar que no esté vacío)
-        # Usamos .all() sobre el related_name "detalles" definido en el modelo
-        queryset_detalles = reserva.detalles.select_related('servicio', 'combo', 'promocion').all()
-        
-        detalles_items = []
-        detalles_items = []
-        for d in queryset_detalles:
-            nombre = "Item"
-            descripcion = ""
-            
-            if d.combo: 
-                nombre = d.combo.nombre
-                descripcion = d.combo.descripcion
-            elif d.servicio: 
-                nombre = d.servicio.nombre
-                descripcion = d.servicio.descripcion
-            elif d.promocion: 
-                nombre = d.promocion.nombre
-                descripcion = d.promocion.descripcion
-            
-            detalles_items.append({
-                'nombre': (nombre or "").strip(),
-                'descripcion': (descripcion or "").strip(),
-                'cantidad': d.cantidad,
-                'precio_unitario': float(d.precio_unitario),
-                'subtotal': float(d.subtotal)
-            })
-
-        # Limpiar datos de reserva y cliente para el contexto (Join-Split para eliminar saltos internos)
-        cliente_nombre = " ".join(str(reserva.cliente.nombre or "").split())
-        cliente_apellido = (reserva.cliente.apellido or "").strip()
-        codigo_reserva = (reserva.codigo_reserva or "").strip()
-        direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
-        notas_especiales = " ".join(str(reserva.notas_especiales or "").split())
-
-        context = {
-            'reserva': reserva,
-            'cliente_nombre': cliente_nombre,
-            'cliente_apellido': cliente_apellido,
-            'codigo_reserva': codigo_reserva,
-            'direccion_evento': direccion_evento,
-            'notas_especiales': notas_especiales,
-            'detalles': detalles_items,
-            'dominio': "http://127.0.0.1:8000", # Cambiar en producción si es necesario
-        }
-
-        # --- 1. ENVÍO AL CLIENTE (HTML Festivo Mejorado) ---
+    def _tarea_en_hilo(rid):
         try:
-            html_cliente = render_to_string('fiesta/emails/cliente_exito_confirmacion.html', context)
-            asunto_cliente = f"✅ ¡Todo Listo! Evento Confirmado 🎉 - {codigo_reserva}"
+            # Recuperar reserva con relaciones necesarias
+            reserva = Reserva.objects.select_related('cliente').get(id=rid)
             
-            msg_cliente = EmailMultiAlternatives(
-                asunto_cliente,
-                f"Hola {cliente_nombre}, tu reserva #{codigo_reserva} ha sido APROBADA.",
-                settings.DEFAULT_FROM_EMAIL,
-                [reserva.cliente.email]
-            )
-            msg_cliente.attach_alternative(html_cliente, "text/html")
-            msg_cliente.send(fail_silently=False)
-            print(f"✨ Correo de CONFIRMACIÓN enviado al cliente: {reserva.cliente.email}")
-        except Exception as e_cli:
-            print(f"❌ Error correo cliente: {str(e_cli)}")
+            # 1. Extraer detalles para el contexto (Garantizar que no esté vacío)
+            detalles_items = []
+            queryset_detalles = reserva.detalles.select_related('servicio', 'combo', 'promocion').all()
+            
+            for d in queryset_detalles:
+                nombre = "Item no especificado"
+                descripcion = ""
+                if d.combo:
+                    nombre = d.combo.nombre
+                    descripcion = d.combo.descripcion
+                elif d.servicio:
+                    nombre = d.servicio.nombre
+                    descripcion = d.servicio.descripcion
+                elif d.promocion:
+                    nombre = d.promocion.nombre
+                    descripcion = d.promocion.descripcion
 
-        # --- 2. ENVÍO AL ADMINISTRADOR (HTML Logística) ---
-        try:
-            destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
-            html_admin = render_to_string('fiesta/reserva_admin_logistica.html', context)
-            asunto_admin = f"🚚 LOGÍSTICA: Orden de Preparación - {codigo_reserva}"
+                detalles_items.append({
+                    'nombre': " ".join(str(nombre or "").split()),
+                    'descripcion': " ".join(str(descripcion or "").split()),
+                    'cantidad': d.cantidad,
+                    'precio_unitario': float(d.precio_unitario),
+                    'subtotal': float(d.subtotal)
+                })
+
+            # Limpiar datos de reserva y cliente para el contexto (Join-Split para eliminar saltos internos)
+            cliente_nombre = " ".join(str(reserva.cliente.nombre or "").split())
+            cliente_apellido = " ".join(str(reserva.cliente.apellido or "").split())
+            codigo_reserva = (reserva.codigo_reserva or "").strip()
+            direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
+            notas_especiales = " ".join(str(reserva.notas_especiales or "").split())
+
+            context = {
+                'reserva': reserva,
+                'cliente_nombre': cliente_nombre,
+                'cliente_apellido': cliente_apellido,
+                'codigo_reserva': codigo_reserva,
+                'direccion_evento': direccion_evento,
+                'notas_especiales': notas_especiales,
+                'detalles': detalles_items,
+                'dominio': "http://127.0.0.1:8000", # Cambiar en producción si es necesario
+            }
+
+            # --- 1. ENVÍO AL CLIENTE (HTML Festivo Mejorado) ---
+            try:
+                html_cliente = render_to_string('fiesta/emails/cliente_exito_confirmacion.html', context)
+                asunto_cliente = f"✅ ¡Todo Listo! Evento Confirmado 🎉 - {codigo_reserva}"
+                
+                msg_cliente = EmailMultiAlternatives(
+                    asunto_cliente,
+                    f"Hola {cliente_nombre}, tu reserva #{codigo_reserva} ha sido APROBADA.",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [reserva.cliente.email]
+                )
+                msg_cliente.attach_alternative(html_cliente, "text/html")
+                msg_cliente.send(fail_silently=False)
+                print(f"✨ Correo de CONFIRMACIÓN enviado al cliente: {reserva.cliente.email}")
+            except Exception as e_cli:
+                print(f"❌ Error correo cliente: {str(e_cli)}")
+                traceback.print_exc()
+
+            # --- 2. ENVÍO AL ADMINISTRADOR (HTML Logística) ---
+            try:
+                destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
+                html_admin = render_to_string('fiesta/reserva_admin_logistica.html', context)
+                asunto_admin = f"🚚 LOGÍSTICA: Orden de Preparación - {codigo_reserva}"
+                
+                msg_admin = EmailMultiAlternatives(
+                    asunto_admin,
+                    f"Nueva orden de logística para la reserva #{codigo_reserva}",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [destinatario_admin]
+                )
+                msg_admin.attach_alternative(html_admin, "text/html")
+                msg_admin.send(fail_silently=False)
+                print(f"📧 Aviso de LOGÍSTICA enviado al admin: {destinatario_admin}")
+            except Exception as e_adm:
+                print(f"❌ Error correo admin: {str(e_adm)}")
+                traceback.print_exc()
             
-            msg_admin = EmailMultiAlternatives(
-                asunto_admin,
-                f"Nueva orden de logística para la reserva #{codigo_reserva}",
-                settings.DEFAULT_FROM_EMAIL,
-                [destinatario_admin]
-            )
-            msg_admin.attach_alternative(html_admin, "text/html")
-            msg_admin.send(fail_silently=False)
-            print(f"📧 Aviso de LOGÍSTICA enviado al admin: {destinatario_admin}")
-        except Exception as e_adm:
-            print(f"❌ Error correo admin: {str(e_adm)}")
-        
-    except Reserva.DoesNotExist:
-        print(f"❌ Error: No se encontró la reserva {reserva_id} para confirmación.")
-    except Exception as e:
-        print(f"❌ Error general en enviar_correo_confirmacion: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
-    except Exception as e:
-        print(f"❌ Error al enviar correo de confirmación: {str(e)}")
-        traceback.print_exc()
+        except Reserva.DoesNotExist:
+            print(f"❌ Error: No se encontró la reserva {reserva_id} para confirmación.")
+        except Exception as e:
+            print(f"❌ Error general en enviar_correo_confirmacion: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+    # Lanzar hilo en background
+    run_in_background(_tarea_en_hilo, reserva_id)
 
 
 def enviar_correo_anulacion(reserva_id):
     """
     Envía un correo al cliente informando que su reserva ha sido ANULADA.
+    Ejecución asíncrona.
     """
-    try:
-        reserva = Reserva.objects.select_related('cliente').get(id=reserva_id)
-        cliente_nombre = (reserva.cliente.nombre or "").strip()
-        codigo_reserva = (reserva.codigo_reserva or "").strip()
-        
-        asunto = f"❌ Reserva Anulada - #{codigo_reserva} - Burbujitas de Colores"
-        mensaje = f"Hola {cliente_nombre}, te informamos que tu reserva #{codigo_reserva} ha sido anulada. Si tienes dudas, por favor contáctanos."
-        
-        send_mail(asunto, mensaje, settings.DEFAULT_FROM_EMAIL, [reserva.cliente.email])
-        print(f"📉 Correo de ANULACIÓN enviado al cliente: {reserva.cliente.email}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo de anulación: {str(e)}")
+    def _tarea_en_hilo(rid):
+        try:
+            reserva = Reserva.objects.select_related('cliente').get(id=rid)
+            cliente_nombre = (reserva.cliente.nombre or "").strip()
+            codigo_reserva = (reserva.codigo_reserva or "").strip()
+            
+            asunto = f"❌ Reserva Anulada - #{codigo_reserva} - Burbujitas de Colores"
+            mensaje = f"Hola {cliente_nombre}, te informamos que tu reserva #{codigo_reserva} ha sido anulada. Si tienes dudas, por favor contáctanos."
+            
+            send_mail(asunto, mensaje, settings.DEFAULT_FROM_EMAIL, [reserva.cliente.email])
+            print(f"📉 Correo de ANULACIÓN enviado al cliente: {reserva.cliente.email}")
+        except Exception as e:
+            print(f"❌ Error al enviar correo de anulación: {str(e)}")
+
+    run_in_background(_tarea_en_hilo, reserva_id)
 
 
 
@@ -1160,39 +1185,105 @@ def checkout_pago(request, reserva_id):
 def enviar_notificacion_comprobante(reserva_id):
     """
     Notifica al admin cuando se sube una foto de pago.
+    ULTRA-LIMPIO: Elimina TODOS los saltos de línea antes de enviar a Brevo.
     """
     try:
         from django.conf import settings
         from django.core.mail import EmailMultiAlternatives
         from django.template.loader import render_to_string
-        from .models import Reserva 
+        from .models import Reserva
+        import re
         
         reserva = Reserva.objects.get(id=reserva_id)
         destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
         
-        # Contexto para el template
+        # 🔍 DEBUG: Verificar qué datos tiene la reserva realmente
+        print(f"--- DEBUG RESERVA: {reserva.id} ---")
+        print(f"Total Crudo: {reserva.total}")
+        print(f"Cliente Crudo: {reserva.cliente}")
+        print(f"Código: {reserva.codigo_reserva}")
+        
+        # ========================================================================
+        # PASO 1: Limpiar TODAS las variables para evitar newlines en Brevo
+        # ========================================================================
+        
+        # Intentar obtener el nombre del cliente (con fallback al User de Django si está vacío)
+        raw_nombre = reserva.cliente.nombre or ""
+        raw_apellido = reserva.cliente.apellido or ""
+        
+        # Si el nombre viene del señal automático o está vacío, intentar buscar en el User
+        if (not raw_nombre or raw_nombre == reserva.cliente.email) and hasattr(reserva.cliente, 'email'):
+            from django.contrib.auth.models import User
+            user_obj = User.objects.filter(email=reserva.cliente.email).first()
+            if user_obj:
+                raw_nombre = user_obj.first_name or user_obj.username
+                raw_apellido = user_obj.last_name
+        
+        nombre_completo = " ".join(f"{raw_nombre} {raw_apellido}".strip().split())
+        cliente_telefono = " ".join(str(reserva.cliente.telefono or "").split())
+        codigo_reserva = " ".join(str(reserva.codigo_reserva or "").split())
+        direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
+        notas_especiales = " ".join(str(reserva.notas_especiales or "").split())
+        metodo_pago = " ".join(str(reserva.metodo_pago or "").split())
+        
+        # Formatear total con 2 decimales y limpiar
+        # Forzamos 0.00 si es None o 0 para evitar cadenas vacías
+        monto_total = reserva.total if reserva.total is not None else 0
+        total_formateado = " ".join(f"{float(monto_total):.2f}".split())
+        
+        print(f"DEBUG PROCESADO -> Nombre: '{nombre_completo}' | Total: '{total_formateado}'")
+        
+        # Contexto para el template con TODOS los posibles nombres de variables
+        # para que coincida con cualquier versión de la plantilla en Brevo
         context = {
             'reserva': reserva,
-            'dominio': "http://127.0.0.1:8000" # Ajustar según entorno
+            'cliente_nombre_completo': nombre_completo, 
+            'nombre_completo': nombre_completo,        
+            'cliente_nombre': nombre_completo,         
+            'cliente_telefono': cliente_telefono,
+            'codigo_reserva': codigo_reserva,
+            'direccion_evento': direccion_evento,
+            'notas_especiales': notas_especiales,
+            'metodo_pago': metodo_pago,
+            'total': total_formateado,
+            'dominio': "http://127.0.0.1:8000",
+            'params': { 
+                 'cliente_nombre_completo': nombre_completo,
+                 'total': total_formateado,
+                 'codigo_reserva': codigo_reserva
+            }
         }
 
-        html_content = render_to_string('fiesta/emails/admin_pago_notificacion.html', context)
-        text_content = f"Nuevo pago subido para reserva #{reserva.codigo_reserva}. Monto: ${reserva.total}"
-
-        asunto = f"📸 NUEVO PAGO SUBIDO - Reserva #{reserva.codigo_reserva}"
+        # ========================================================================
+        # PASO 2: Generar contenido HTML y limpiarlo (Nueva Plantilla Profesional)
+        # ========================================================================
+        html_content = render_to_string('fiesta/emails/notificacion_admin.html', context)
+        # ULTRA-LIMPIO: Normalizar HTML para eliminar saltos de línea que rompen Brevo
+        html_content = re.sub(r'\s+', ' ', html_content).strip()
         
+        # ========================================================================
+        # PASO 3: Limpiar asunto y texto plano (CRÍTICO para Brevo)
+        # ========================================================================
+        asunto = " ".join(f"📸 NUEVO PAGO SUBIDO - Reserva #{codigo_reserva}".split())
+        text_content = " ".join(f"Nuevo pago subido para reserva #{codigo_reserva}. Monto: ${total_formateado}".split())
+        
+        # ========================================================================
+        # PASO 4: Enviar email con TODAS las cadenas limpias
+        # ========================================================================
         msg = EmailMultiAlternatives(
-            asunto,
-            text_content,
-            settings.DEFAULT_FROM_EMAIL,
-            [destinatario_admin]
+            subject=asunto,  # Sin newlines
+            body=text_content,  # Sin newlines
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[destinatario_admin]
         )
         msg.attach_alternative(html_content, "text/html")
         msg.send(fail_silently=False)
 
-        print(f"✅ Notificación de comprobante (HTML) enviada al admin para reserva {reserva.codigo_reserva}")
+        print(f"✅ Notificación de comprobante enviada al admin para reserva {codigo_reserva}")
     except Exception as e:
         print(f"❌ Error notificando comprobante: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 # C. ViewSet para gestionar el carrito (Ver)

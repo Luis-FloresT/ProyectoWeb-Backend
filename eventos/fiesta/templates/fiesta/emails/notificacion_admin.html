@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuevo Pago Recibido</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { width: 100%; max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background-color: #007bff; color: #ffffff; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        .info-table td { padding: 12px 15px; border-bottom: 1px solid #eeeeee; }
+        .label { font-weight: bold; color: #555555; width: 40%; }
+        .value { color: #000000; text-align: right; }
+        .total-row { background-color: #f9f9f9; }
+        .total-amount { font-size: 22px; color: #28a745; font-weight: bold; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #999999; font-size: 13px; }
+        .btn { display: inline-block; padding: 15px 30px; background-color: #007bff; color: #ffffff !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; transition: background-color 0.3s; }
+        .btn:hover { background-color: #0056b3; }
+        @media only screen and (max-width: 600px) {
+            .container { margin: 0 auto; border-radius: 0; }
+            .content { padding: 20px; }
+            .label { width: 50%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Nuevo Pago Subido</h1>
+        </div>
+        <div class="content">
+            <p style="font-size: 18px; margin-bottom: 10px;">¡Hola Admin!</p>
+            <p>Se ha recibido una nueva notificación de pago para validar en el sistema.</p>
+            
+            <table class="info-table">
+                <tr>
+                    <td class="label">Código de Reserva:</td>
+                    <td class="value">#{{ codigo_reserva }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Cliente:</td>
+                    <td class="value">{{ nombre_completo }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td class="label">Monto Total:</td>
+                    <td class="value total-amount">${{ total }}</td>
+                </tr>
+            </table>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ dominio }}/admin" class="btn">Ver en el Panel</a>
+            </div>
+            
+            <p style="margin-top: 30px; color: #777; font-size: 14px; text-align: center;">
+                Recuerda verificar que el comprobante adjunto coincida con el monto reportado antes de aprobar.
+            </p>
+        </div>
+        <div class="footer">
+            Burbujitas de Colores &copy; 2026<br>
+            Este es un correo automático, por favor no lo respondas.
+        </div>
+    </div>
+</body>
+</html>

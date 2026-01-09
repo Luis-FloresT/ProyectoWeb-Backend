@@ -85,19 +85,41 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'eventos.wsgi.application'
 
-# Database
+# Database Configuration with Fast Failover
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia', 
-        'USER': 'postgres', 
-        'PASSWORD':'123456',
-        'HOST': 'localhost', 
-        'PORT': '5432', 
+        'NAME': os.environ.get('DB_NAME', 'sandia'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
+        'HOST': 'db', 
+        'PORT': '5432',
+        'CONN_MAX_AGE': 0,  # Don't persist connections to detect failures faster
+        'OPTIONS': {
+            'connect_timeout': 2,  # 2 second connection timeout
+            'options': '-c statement_timeout=5000',  # 5 second query timeout
+        },
+    },
+    'espejo': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'sandia_espejo',
+        'USER': 'postgres',
+        'PASSWORD': '123456',
+        'HOST': 'db_espejo',
+        'PORT': '5432',
+        'CONN_MAX_AGE': 0,  # Don't persist connections
+        'OPTIONS': {
+            'connect_timeout': 2,  # 2 second connection timeout
+            'options': '-c statement_timeout=5000',  # 5 second query timeout
+        },
     }
 }
 
+# Database Routers
+DATABASE_ROUTERS = ['eventos.router.ReplicationRouter']
+
 # Password validation
+# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
