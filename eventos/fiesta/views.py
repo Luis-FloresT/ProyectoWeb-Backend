@@ -270,80 +270,8 @@ def enviar_correo_reserva(reserva_id, detalles_previa_carga=None):
             print(f"❌ Error general en enviar_correo_reserva: {str(e)}")
             traceback.print_exc()
 
-<<<<<<< HEAD
     # Lanzar hilo en background
     run_in_background(_tarea_en_hilo, reserva_id, detalles_previa_carga)
-=======
-    # Preparar contexto con datos limpios
-    bancos = ConfiguracionPago.objects.filter(activo=True)
-    dominio = "https://proyectoweb-backend-239k.onrender.com" # Cambiado a URL de producción
-    
-    # Limpiar datos de reserva y cliente
-    cliente_nombre = (reserva.cliente.nombre or "").strip()
-    cliente_apellido = (reserva.cliente.apellido or "").strip()
-    codigo_reserva = (reserva.codigo_reserva or "").strip()
-    direccion_evento = (reserva.direccion_evento or "").strip()
-    
-    context = {
-        'reserva': reserva,
-        'cliente_nombre': cliente_nombre,
-        'cliente_apellido': cliente_apellido,
-        'codigo_reserva': codigo_reserva,
-        'direccion_evento': direccion_evento,
-        'detalles': detalles_procesados,
-        'bancos': bancos,
-        'dominio': dominio,
-    }
-
-    # --- 1. Correo para el CLIENTE ---
-    try:
-        html_cliente = render_to_string('fiesta/reserva_cliente.html', context)
-        
-        if reserva.metodo_pago == 'transferencia' or not reserva.metodo_pago:
-            asunto_cliente = f"📥 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, hemos recibido tu reserva {codigo_reserva}. Por favor realiza el pago para confirmarla."
-        elif reserva.metodo_pago == 'efectivo':
-            asunto_cliente = f"💵 Reserva Recibida #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, tu reserva {codigo_reserva} ha sido recibida. El pago se realizará en efectivo."
-        else: # Tarjeta
-            asunto_cliente = f"🎈 Reserva Confirmada #{codigo_reserva} - Burbujitas de Colores"
-            text_cliente = f"Hola {cliente_nombre}, ¡tu reserva {codigo_reserva} ha sido confirmada!"
-        
-        msg_cliente = EmailMultiAlternatives(
-            asunto_cliente, 
-            text_cliente, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [reserva.cliente.email]
-        )
-        msg_cliente.attach_alternative(html_cliente, "text/html")
-        msg_cliente.send(fail_silently=False)
-        print(f"✅ Correo enviado al cliente: {reserva.cliente.email}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo al cliente ({reserva.cliente.email}): {str(e)}")
-        traceback.print_exc()
-
-    # --- 2. Correo para el ADMINISTRADOR ---
-    try:
-        # Se asume que settings.SERVER_EMAIL está configurado
-        destinatario_admin = getattr(settings, 'SERVER_EMAIL', settings.DEFAULT_FROM_EMAIL)
-        
-        html_admin = render_to_string('fiesta/reserva_admin.html', context)
-        text_admin = f"Nueva reserva recibida: #{codigo_reserva} de {cliente_nombre} {cliente_apellido}."
-        
-        asunto_admin = f"🔔 NUEVA RESERVA - #{codigo_reserva} - ({cliente_nombre})"
-        msg_admin = EmailMultiAlternatives(
-            asunto_admin, 
-            text_admin, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [destinatario_admin]
-        )
-        msg_admin.attach_alternative(html_admin, "text/html")
-        msg_admin.send(fail_silently=False)
-        print(f"✅ Correo de aviso enviado al administrador: {destinatario_admin}")
-    except Exception as e:
-        print(f"❌ Error al enviar correo al administrador: {str(e)}")
-        traceback.print_exc()
->>>>>>> 4f558ae8f546a686e5a2c0f59082cf96c9a33c3e
 
 
 def enviar_correo_confirmacion(reserva_id):
@@ -351,60 +279,7 @@ def enviar_correo_confirmacion(reserva_id):
     Envía un correo festivo al cliente y un aviso profesional de logística al admin.
     Ejecución asíncrona (Thread).
     """
-<<<<<<< HEAD
     def _tarea_en_hilo(rid):
-=======
-    try:
-        # Recuperar reserva con relaciones necesarias
-        reserva = Reserva.objects.select_related('cliente').get(id=reserva_id)
-        
-        # 1. Extraer detalles para el contexto (Garantizar que no esté vacío)
-        # Usamos .all() sobre el related_name "detalles" definido en el modelo
-        queryset_detalles = reserva.detalles.select_related('servicio', 'combo', 'promocion').all()
-        
-        detalles_items = []
-        for d in queryset_detalles:
-            nombre = "Item"
-            descripcion = ""
-            
-            if d.combo: 
-                nombre = d.combo.nombre
-                descripcion = d.combo.descripcion
-            elif d.servicio: 
-                nombre = d.servicio.nombre
-                descripcion = d.servicio.descripcion
-            elif d.promocion: 
-                nombre = d.promocion.nombre
-                descripcion = d.promocion.descripcion
-            
-            detalles_items.append({
-                'nombre': (nombre or "").strip(),
-                'descripcion': (descripcion or "").strip(),
-                'cantidad': d.cantidad,
-                'precio_unitario': float(d.precio_unitario),
-                'subtotal': float(d.subtotal)
-            })
-
-        # Limpiar datos de reserva y cliente para el contexto (Join-Split para eliminar saltos internos)
-        cliente_nombre = " ".join(str(reserva.cliente.nombre or "").split())
-        cliente_apellido = (reserva.cliente.apellido or "").strip()
-        codigo_reserva = (reserva.codigo_reserva or "").strip()
-        direccion_evento = " ".join(str(reserva.direccion_evento or "").split())
-        notas_especiales = " ".join(str(reserva.notas_especiales or "").split())
-
-        context = {
-            'reserva': reserva,
-            'cliente_nombre': cliente_nombre,
-            'cliente_apellido': cliente_apellido,
-            'codigo_reserva': codigo_reserva,
-            'direccion_evento': direccion_evento,
-            'notas_especiales': notas_especiales,
-            'detalles': detalles_items,
-            'dominio': "https://proyectoweb-backend-239k.onrender.com", # Cambiado a URL de producción
-        }
-
-        # --- 1. ENVÍO AL CLIENTE (HTML Festivo Mejorado) ---
->>>>>>> 4f558ae8f546a686e5a2c0f59082cf96c9a33c3e
         try:
             # Recuperar reserva con relaciones necesarias
             reserva = Reserva.objects.select_related('cliente').get(id=rid)
@@ -489,7 +364,6 @@ def enviar_correo_confirmacion(reserva_id):
                 print(f"❌ Error correo admin: {str(e_adm)}")
                 traceback.print_exc()
             
-<<<<<<< HEAD
         except Reserva.DoesNotExist:
             print(f"❌ Error: No se encontró la reserva {reserva_id} para confirmación.")
         except Exception as e:
@@ -499,26 +373,6 @@ def enviar_correo_confirmacion(reserva_id):
             
     # Lanzar hilo en background
     run_in_background(_tarea_en_hilo, reserva_id)
-=======
-            msg_admin = EmailMultiAlternatives(
-                asunto_admin,
-                f"Nueva orden de logística para la reserva #{codigo_reserva}",
-                settings.DEFAULT_FROM_EMAIL,
-                [destinatario_admin]
-            )
-            msg_admin.attach_alternative(html_admin, "text/html")
-            msg_admin.send(fail_silently=False)
-            print(f"📧 Aviso de LOGÍSTICA enviado al admin: {destinatario_admin}")
-        except Exception as e_adm:
-            print(f"❌ Error correo admin: {str(e_adm)}")
-        
-    except Reserva.DoesNotExist:
-        print(f"❌ Error: No se encontró la reserva {reserva_id} para confirmación.")
-    except Exception as e:
-        print(f"❌ Error general en enviar_correo_confirmacion: {str(e)}")
-        import traceback
-        traceback.print_exc()
->>>>>>> 4f558ae8f546a686e5a2c0f59082cf96c9a33c3e
 
 
 def enviar_correo_anulacion(reserva_id):
