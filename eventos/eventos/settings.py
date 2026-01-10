@@ -1,7 +1,7 @@
 import os
 import environ
 from pathlib import Path
-import dj_database_url  # Importante para la base de datos en la nube
+  # Importante para la base de datos en la nube
 
 # 1. DEFINIR BASE_DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
