@@ -474,8 +474,12 @@ class RegistroUsuarioView(APIView):
             if RegistroUsuario.objects.filter(telefono=telefono).exists():
                 return Response({'message': 'Ese teléfono ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Determinar base de datos activa para la transacción
+            from django.db import router
+            active_db = router.db_for_write(User)
+
             # --- INICIO DE TRANSACCIÓN ATÓMICA ---
-            with transaction.atomic():
+            with transaction.atomic(using=active_db):
                 # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
                 user = User.objects.create_user(username=nombre, email=email, password=clave)
                 user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
@@ -701,7 +705,9 @@ class PasswordResetConfirmView(APIView):
                 return Response({'message': 'El enlace ha expirado. Por favor solicita uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 2. Actualizar contraseña de forma atómica
-            with transaction.atomic():
+            from django.db import router
+            active_db = router.db_for_write(User)
+            with transaction.atomic(using=active_db):
                 user = reset_token.user
                 user.set_password(nueva_clave)
                 user.save()
@@ -855,8 +861,12 @@ class ReservaViewSet(viewsets.ModelViewSet):
             # Cliente correcto en la reserva
             data['cliente'] = cliente.id
 
+            # Determinar base de datos activa para la transacción
+            from django.db import router
+            active_db = router.db_for_write(Reserva)
+
             # Crear reserva + detalle en transacción
-            with transaction.atomic():
+            with transaction.atomic(using=active_db):
                 serializer = self.get_serializer(data=data)
                 if not serializer.is_valid():
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1043,8 +1053,12 @@ def confirmar_carrito(request):
         if overlap_carrito:
             return Response({'error': 'Lo sentimos, este día ya ha sido reservado por otro usuario mientras procesabas tu pedido.'}, status=400)
 
+        # Determinar base de datos activa para la transacción
+        from django.db import router
+        active_db = router.db_for_write(Reserva)
+
         # Transacción Atómica: O se guarda todo (reserva + detalles) o nada.
-        with transaction.atomic():
+        with transaction.atomic(using=active_db):
             # 1. Crear Reserva
             nueva_reserva = Reserva.objects.create(
                 cliente=cliente,

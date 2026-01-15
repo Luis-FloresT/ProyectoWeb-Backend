@@ -94,8 +94,8 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME', 'sandia'),
         'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
-        'HOST': 'db', 
-        'PORT': '5432',
+        'HOST': os.environ.get('DB_HOST', 'db'), 
+        'PORT': os.environ.get('DB_PORT', '5432'),
         'CONN_MAX_AGE': 0,  # Don't persist connections to detect failures faster
         'OPTIONS': {
             'connect_timeout': 2,  # 2 second connection timeout
@@ -104,11 +104,11 @@ DATABASES = {
     },
     'espejo': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia_espejo',
-        'USER': 'postgres',
-        'PASSWORD': '123456',
-        'HOST': 'db_espejo',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME_ESPEJO', 'sandia_espejo'),
+        'USER': os.environ.get('DB_USER_ESPEJO', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD_ESPEJO', '123456'),
+        'HOST': os.environ.get('DB_HOST_ESPEJO', 'db_espejo'),
+        'PORT': os.environ.get('DB_PORT_ESPEJO', '5432'),
         'CONN_MAX_AGE': 0,  # Don't persist connections
         'OPTIONS': {
             'connect_timeout': 2,  # 2 second connection timeout
