@@ -96,7 +96,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
         'HOST': os.environ.get('DB_HOST', 'db'), 
         'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 0,  # Don't persist connections to detect failures faster
+        'CONN_MAX_AGE': 60,  # Don't persist connections to detect failures faster
         'OPTIONS': {
             'connect_timeout': 2,  # 2 second connection timeout
             'options': '-c statement_timeout=5000',  # 5 second query timeout
@@ -109,7 +109,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD_ESPEJO', '123456'),
         'HOST': os.environ.get('DB_HOST_ESPEJO', 'db_espejo'),
         'PORT': os.environ.get('DB_PORT_ESPEJO', '5432'),
-        'CONN_MAX_AGE': 0,  # Don't persist connections
+        'CONN_MAX_AGE': 60,  # Don't persist connections
         'OPTIONS': {
             'connect_timeout': 2,  # 2 second connection timeout
             'options': '-c statement_timeout=5000',  # 5 second query timeout
