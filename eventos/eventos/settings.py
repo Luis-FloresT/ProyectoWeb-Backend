@@ -28,8 +28,8 @@ ANYMAIL = {
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL')
 
-# Permitir todos los hosts para evitar errores en Render
-ALLOWED_HOSTS = ['*']
+# Permitir todos los hosts para evitar errores en Render y Ngrok
+ALLOWED_HOSTS = ['*']  # O puedes ser más específico: ['.vercel.app', '.ngrok-free.dev', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -146,7 +146,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://proyectoweb-fronted.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://melina-dynastical-shenita.ngrok-free.dev",
+    "https://proyectoweb-fronted.vercel.app",
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Configuración de Seguridad para Producción
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Almacenamiento optimizado de estáticos para producción (WhiteNoise)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
