@@ -137,12 +137,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- CONFIGURACIÓN DE CORS Y SEGURIDAD (LLAVE MAESTRA) ---
 
-CORS_ALLOW_ALL_ORIGINS = True  # <--- Esto elimina cualquier error de CORS de raíz
+CORS_ALLOW_ALL_ORIGINS = True  
 CORS_ALLOW_CREDENTIALS = True
 
-# AÑADE ESTAS DOS LÍNEAS AQUÍ:
+# AÑADE ESTO PARA QUE ACEPTE EL HEADER DE NGROK:
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "ngrok-skip-browser-warning",  # <--- Esta línea es vital
+]
+
 APPEND_SLASH = True
 ALLOWED_HOSTS = ['*']
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
