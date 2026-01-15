@@ -517,7 +517,7 @@ class RegistroUsuarioView(APIView):
 
                 # 9️⃣ Preparar correo de verificación
                 # CAMBIO: URL de producción del backend
-                domain = "https://proyectoweb-backend-239k.onrender.com"
+                domain = settings.BACKEND_URL
                 link_verificacion = f"{domain}/api/verificar-email/?token={token}"
                 
                 context = {

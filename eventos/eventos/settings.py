@@ -177,3 +177,6 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# URL del Backend (Dinámica para Ngrok/Render)
+BACKEND_URL = env('BACKEND_URL', default='https://melina-dynastical-shenita.ngrok-free.dev')
