@@ -93,7 +93,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
         'HOST': os.environ.get('DB_HOST', 'db'), 
         'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 60,  # Mantener conexión activa para evitar "connection is closed"
+        'CONN_MAX_AGE': 0,  # Mantener conexión activa para evitar "connection is closed"
         'OPTIONS': {
             'connect_timeout': 5,
             'options': '-c statement_timeout=10000',
@@ -106,7 +106,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD_ESPEJO', '123456'),
         'HOST': os.environ.get('DB_HOST_ESPEJO', 'db_espejo'),
         'PORT': os.environ.get('DB_PORT_ESPEJO', '5432'),
-        'CONN_MAX_AGE': 60,
+        'CONN_MAX_AGE': 0,
         'OPTIONS': {
             'connect_timeout': 5,
             'options': '-c statement_timeout=10000',
