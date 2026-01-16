@@ -98,23 +98,9 @@ DATABASES = {
             'connect_timeout': 5,
             'options': '-c statement_timeout=10000',
         },
-    },
-    'espejo': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME_ESPEJO', 'sandia_espejo'),
-        'USER': os.environ.get('DB_USER_ESPEJO', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD_ESPEJO', '123456'),
-        'HOST': os.environ.get('DB_HOST_ESPEJO', 'db_espejo'),
-        'PORT': os.environ.get('DB_PORT_ESPEJO', '5432'),
-        'CONN_MAX_AGE': 0,
-        'OPTIONS': {
-            'connect_timeout': 5,
-            'options': '-c statement_timeout=10000',
-        },
     }
 }
 
-DATABASE_ROUTERS = ['eventos.router.ReplicationRouter']
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

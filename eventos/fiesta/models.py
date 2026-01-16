@@ -448,49 +448,6 @@ def auto_confirmacion_pago(sender, instance, created, **kwargs):
         # Enviar doble notificación (Cliente + Admin)
         enviar_correo_confirmacion(instance.id)
 
-    # 2. CASO: ANULADA
+# 2. CASO: ANULADA
     if instance.estado == 'ANULADA':
         enviar_correo_anulacion(instance.id)
-
-
-
-
-
-# Variable para evitar que la réplica se llame a sí misma
-_replica_en_progreso = threading.local()
-
-@receiver(post_save)
-def replicar_a_espejo(sender, instance, created, **kwargs):
-    # Si ya estamos replicando, no hacemos nada
-    if getattr(_replica_en_progreso, 'value', False):
-        return
-
-    # Solo replicamos si el guardado es en la base principal (default)
-    if kwargs.get('using') == 'default' or kwargs.get('using') is None:
-        try:
-            _replica_en_progreso.value = True
-            
-            # Buscamos el objeto en la base espejo por su ID (PK)
-            # Esto evita que Django intente validar relaciones cruzadas complejas
-            model_class = instance.__class__
-            data = {}
-            
-            # Extraemos los valores usando attname para obtener IDs crudos en ForeignKeys
-            for field in instance._meta.fields:
-                # field.attname nos da 'usuario_id' en lugar de 'usuario'
-                # Esto evita fetching del objeto relacionado y errores de router
-                valor = getattr(instance, field.attname)
-                data[field.attname] = valor
-
-            # Guardamos/Actualizamos en el espejo
-            model_class.objects.using('espejo').update_or_create(
-                pk=instance.pk, 
-                defaults=data
-            )
-            print(f"✅ Réplica limpia en espejo: {instance} (ID: {instance.pk})")
-        except Exception as e:
-            print(f"❌ Error en réplica: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            _replica_en_progreso.value = False
