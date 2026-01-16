@@ -516,9 +516,8 @@ class RegistroUsuarioView(APIView):
                 EmailVerificationToken.objects.create(user=user, token=token)
 
                 # 9️⃣ Preparar correo de verificación
-                # CAMBIO: URL del Frontend en producción (Vercel) para evitar Ngrok warning
-                frontend_domain = "https://proyectoweb-tan.vercel.app"
-                link_verificacion = f"{frontend_domain}/verificar?token={token}"
+                # CAMBIO: URL del Frontend centralizada desde settings
+                link_verificacion = f"{settings.FRONTEND_URL}/verificar?token={token}"
                 
                 context = {
                     'nombre': nombre,
@@ -645,9 +644,9 @@ class PasswordResetRequestView(APIView):
             reset_token = PasswordResetToken.objects.create(user=user)
             
             # Preparar correo
-            # CAMBIO: URL de producción del frontend (Fix Definitivo)
-            frontend_domain = "https://proyectoweb-tan.vercel.app"
-            link_recuperacion = f"{frontend_domain}/reset-password/{reset_token.token}"
+            # Preparar correo
+            # CAMBIO: URL de producción del frontend centralizada desde settings
+            link_recuperacion = f"{settings.FRONTEND_URL}/reset-password/{reset_token.token}"
             
             context = {
                 'user': user,

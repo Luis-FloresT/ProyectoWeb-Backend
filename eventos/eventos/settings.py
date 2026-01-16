@@ -147,6 +147,7 @@ ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
     "https://*.vercel.app",
+    "https://proyectoweb-fronted.vercel.app",  # Nueva URL Oficial
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
@@ -166,3 +167,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # URL del Backend (Dinámica para Ngrok/Render)
 BACKEND_URL = env('BACKEND_URL', default='https://melina-dynastical-shenita.ngrok-free.dev')
+
+# URL del Frontend (Oficial)
+FRONTEND_URL = env('FRONTEND_URL', default='https://proyectoweb-fronted.vercel.app')
