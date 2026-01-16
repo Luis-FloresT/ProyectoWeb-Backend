@@ -40,8 +40,9 @@ class ComboAdmin(admin.ModelAdmin):
 
 @admin.register(Promocion)
 class PromocionAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'fecha_inicio', 'fecha_fin', 'activo')
+    list_display = ('nombre', 'precio', 'fecha_inicio', 'fecha_fin', 'activo')
     list_filter = ('activo', 'fecha_inicio')
+    search_fields = ('nombre',)
 
 # ==========================================
 # NEGOCIO (RESERVAS)

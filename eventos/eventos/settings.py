@@ -28,8 +28,8 @@ ANYMAIL = {
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL')
 
-# Permitir todos los hosts para evitar errores en Render
-ALLOWED_HOSTS = ['*']
+# Permitir el dominio de Vercel y localhost para desarrollo
+ALLOWED_HOSTS = ['proyectweb-fronted.vercel.app', '*.vercel.app', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -87,38 +87,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'eventos.wsgi.application'
 
-# Database Configuration with Fast Failover
+# Base de datos única
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'sandia'),
         'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
-        'HOST': 'db', 
+        'PASSWORD': os.environ.get('DB_PASSWORD', '12345'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),  # 'db' para Docker, 'localhost' para local
         'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't persist connections to detect failures faster
+        'CONN_MAX_AGE': 0,
         'OPTIONS': {
-            'connect_timeout': 2,  # 2 second connection timeout
-            'options': '-c statement_timeout=5000',  # 5 second query timeout
+            'connect_timeout': 2,
+            'options': '-c statement_timeout=5000',
         },
     },
-    'espejo': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia_espejo',
-        'USER': 'postgres',
-        'PASSWORD': '123456',
-        'HOST': 'db_espejo',
-        'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't persist connections
-        'OPTIONS': {
-            'connect_timeout': 2,  # 2 second connection timeout
-            'options': '-c statement_timeout=5000',  # 5 second query timeout
-        },
-    }
 }
-
-# Database Routers
-DATABASE_ROUTERS = ['eventos.router.ReplicationRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -145,8 +129,14 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS - Permitir frontend en Vercel
+CORS_ALLOWED_ORIGINS = [
+    'https://proyectweb-fronted.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+]
 
 # Almacenamiento optimizado de estáticos para producción (WhiteNoise)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

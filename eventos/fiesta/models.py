@@ -5,7 +5,6 @@ from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
 import uuid
-import threading
 
 
 # ==========================================
@@ -109,6 +108,8 @@ class Categoria(models.Model):
 class Promocion(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    imagen = models.URLField(blank=True, null=True)
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     descuento_monto = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     fecha_inicio = models.DateTimeField()
@@ -121,7 +122,7 @@ class Promocion(models.Model):
         db_table = 'promocion'
 
     def __str__(self):
-        return f"{self.nombre} ({self.descuento_porcentaje}% / ${self.descuento_monto})"
+        return f"{self.nombre} - ${self.precio}"
 
 
 class Servicio(models.Model):
@@ -430,7 +431,7 @@ def auto_confirmacion_pago(sender, instance, created, **kwargs):
     Detecta cambios de estado y envía correos automatizados.
     Silencioso al crear (PENDIENTE). Solo dispara con APROBADA o ANULADA.
     """
-    from .views import enviar_correo_confirmacion, enviar_correo_anulacion
+    from fiesta.api.views.bookings import enviar_correo_confirmacion, enviar_correo_anulacion
     
     # 1. CASO: APROBADA (Solo si pasamos de PENDIENTE a APROBADA)
     # Usamos fecha_confirmacion como candado para evitar duplicados
@@ -448,43 +449,3 @@ def auto_confirmacion_pago(sender, instance, created, **kwargs):
 
 
 
-
-# Variable para evitar que la réplica se llame a sí misma
-_replica_en_progreso = threading.local()
-
-@receiver(post_save)
-def replicar_a_espejo(sender, instance, created, **kwargs):
-    # Si ya estamos replicando, no hacemos nada
-    if getattr(_replica_en_progreso, 'value', False):
-        return
-
-    # Solo replicamos si el guardado es en la base principal (default)
-    if kwargs.get('using') == 'default' or kwargs.get('using') is None:
-        try:
-            _replica_en_progreso.value = True
-            
-            # Buscamos el objeto en la base espejo por su ID (PK)
-            # Esto evita que Django intente validar relaciones cruzadas complejas
-            model_class = instance.__class__
-            data = {}
-            
-            # Extraemos los valores usando attname para obtener IDs crudos en ForeignKeys
-            for field in instance._meta.fields:
-                # field.attname nos da 'usuario_id' en lugar de 'usuario'
-                # Esto evita fetching del objeto relacionado y errores de router
-                valor = getattr(instance, field.attname)
-                data[field.attname] = valor
-
-            # Guardamos/Actualizamos en el espejo
-            model_class.objects.using('espejo').update_or_create(
-                pk=instance.pk, 
-                defaults=data
-            )
-            
-            print(f"✅ Réplica limpia en espejo: {instance} (ID: {instance.pk})")
-        except Exception as e:
-            print(f"❌ Error en réplica: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            _replica_en_progreso.value = False

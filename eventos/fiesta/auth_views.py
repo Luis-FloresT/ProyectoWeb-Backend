@@ -36,7 +36,7 @@ class RegistroUsuarioView(APIView):
         EmailVerificationToken.objects.create(user=user, token=token)
 
         # Enviar email
-        verification_link = f"http://localhost:8000/api/verificar-email/?token={token}"
+        verification_link = f"http://localhost:5173/verificar-email/?token={token}"
         send_mail(
             'Verifica tu correo',
             f'Hola {nombre},\n\nPor favor verifica tu correo usando el siguiente enlace:\n{verification_link}\n\nGracias!',
@@ -84,4 +84,12 @@ class LoginView(APIView):
         if not user.is_active:
             return Response({"error": "El correo no ha sido verificado."}, status=status.HTTP_403_FORBIDDEN)
 
-        return Response({"success": "Inicio de sesión exitoso.", "user_id": user.id, "email": user.email}, status=status.HTTP_200_OK)
+        from rest_framework.authtoken.models import Token
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            "success": "Inicio de sesión exitoso.",
+            "user_id": user.id,
+            "email": user.email,
+            "token": token.key
+        }, status=status.HTTP_200_OK)

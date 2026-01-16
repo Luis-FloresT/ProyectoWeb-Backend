@@ -9,7 +9,7 @@ urlpatterns = [
     path('api/', include('fiesta.urls')),
     
     # 2. AGREGAR ESTA LÍNEA (Redirección al Frontend en producción):
-    path('', RedirectView.as_view(url='https://proyectoweb-fronted.onrender.com/')), 
+    path('', RedirectView.as_view(url='http://localhost:5173/')), 
 ]
 
 if settings.DEBUG:
