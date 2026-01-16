@@ -645,7 +645,7 @@ class PasswordResetRequestView(APIView):
             reset_token = PasswordResetToken.objects.create(user=user)
             
             # Preparar correo
-            # CAMBIO: URL de producción del frontend
+            # CAMBIO: URL de producción del frontend (Fix Definitivo)
             frontend_domain = "https://proyectoweb-tan.vercel.app"
             link_recuperacion = f"{frontend_domain}/reset-password/{reset_token.token}"
             
