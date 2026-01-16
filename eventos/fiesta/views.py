@@ -516,9 +516,9 @@ class RegistroUsuarioView(APIView):
                 EmailVerificationToken.objects.create(user=user, token=token)
 
                 # 9️⃣ Preparar correo de verificación
-                # CAMBIO: URL de producción del backend
-                domain = settings.BACKEND_URL
-                link_verificacion = f"{domain}/api/verificar-email/?token={token}"
+                # CAMBIO: URL del Frontend en producción (Vercel) para evitar Ngrok warning
+                frontend_domain = "https://proyectoweb-tan.vercel.app"
+                link_verificacion = f"{frontend_domain}/verificar?token={token}"
                 
                 context = {
                     'nombre': nombre,
@@ -619,7 +619,7 @@ class VerificarEmailView(APIView):
         token_obj.delete()
 
         # Renderizar página de éxito
-        return render(request, 'emails/verification_success.html')
+        return Response({'message': 'Correo verificado exitosamente.'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetRequestView(APIView):
