@@ -646,7 +646,7 @@ class PasswordResetRequestView(APIView):
             
             # Preparar correo
             # CAMBIO: URL de producción del frontend
-            frontend_domain = "https://proyectoweb-fronted.onrender.com"
+            frontend_domain = "https://proyectoweb-tan.vercel.app"
             link_recuperacion = f"{frontend_domain}/reset-password/{reset_token.token}"
             
             context = {
