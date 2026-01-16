@@ -88,12 +88,12 @@ WSGI_APPLICATION = 'eventos.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'sandia'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
-        'HOST': os.environ.get('DB_HOST', 'db'), 
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 0,  # Mantener conexión activa para evitar "connection is closed"
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'), 
+        'PORT': env('DB_PORT'),
+        'CONN_MAX_AGE': 0,
         'OPTIONS': {
             'connect_timeout': 5,
             'options': '-c statement_timeout=10000',
