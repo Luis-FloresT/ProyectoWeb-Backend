@@ -25,8 +25,8 @@ ANYMAIL = {
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL')
 
-# ALLOWED HOSTS TOTAL (Para Ngrok y Vercel)
-ALLOWED_HOSTS = ['*', 'melina-dynastical-shenita.ngrok-free.dev']
+# ALLOWED HOSTS (Definido más abajo en la sección de seguridad)
+# ALLOWED_HOSTS = ...
 
 # Application definition
 INSTALLED_APPS = [
@@ -141,34 +141,38 @@ CORS_ALLOW_HEADERS = [
 ]
 
 APPEND_SLASH = True
-ALLOWED_HOSTS = ['*']
 
+# ALLOWED HOSTS CONSOLIDADO (Sin duplicados, sin '*')
+ALLOWED_HOSTS = [
+    'melina-dynastical-shenita.ngrok-free.dev', 
+    'localhost', 
+    '127.0.0.1', 
+    '.vercel.app'
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
-    "https://melina-dynastical-shenita.ngrok-free.dev", # Tu URL de Ngrok Específica
+    "https://melina-dynastical-shenita.ngrok-free.dev",
     "https://*.vercel.app",
     "https://proyectweb-fronted.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
-# Indispensable para que Django acepte peticiones HTTPS desde el túnel
+# SEGURIDAD PROXY SSL (CRÍTICO PARA ADMIN REDIRECT)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
-# Ajustes de Seguridad (Cookies y SSL)
-# Forzamos estas opciones para que funcionen con Ngrok (SSL Proxy)
-SECURE_SSL_REDIRECT = False  # Ngrok ya maneja SSL, evitar bucles
+# Ajustes de Cookies
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
 
 if not DEBUG:
-    # Ajustes adicionales para producción estricta
-    pass
+    # Ajustes para producción
+    SECURE_SSL_REDIRECT = False  # Ngrok ya maneja SSL
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
