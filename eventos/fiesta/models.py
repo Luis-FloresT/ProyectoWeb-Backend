@@ -17,8 +17,6 @@ class ModeloBaseSincronizado(models.Model):
     Clase base para asegurar que todos los modelos tengan marcas de tiempo
     para la sincronización entre bases de datos.
     """
-    creado_en = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    actualizado_en = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         abstract = True
@@ -328,7 +326,6 @@ class Reserva(ModeloBaseSincronizado):
         verbose_name = "Reserva"
         verbose_name_plural = "Reservas"
         db_table = 'reserva'
-        ordering = ['-creado_en']
 
     def __str__(self):
         return f"#{self.codigo_reserva} - {self.fecha_evento} ({self.estado})"

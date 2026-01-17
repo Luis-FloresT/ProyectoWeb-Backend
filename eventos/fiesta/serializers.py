@@ -11,8 +11,7 @@ from .models import (
 class RegistroUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroUsuario
-        fields = ['id', 'nombre', 'apellido', 'telefono', 'email', 'creado_en', 'activo']
-        read_only_fields = ['creado_en']
+        fields = ['id', 'nombre', 'apellido', 'telefono', 'email', 'activo']
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,13 +37,11 @@ class PagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pago
         fields = '__all__'
-        read_only_fields = ['creado_en']
 
 class CancelacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cancelacion
         fields = '__all__'
-        read_only_fields = ['creado_en']
 
 # ----------------- SERIALIZERS RELACIONADOS -----------------
 
@@ -54,7 +51,6 @@ class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = '__all__'
-        read_only_fields = ['creado_en']
 
 class ComboServicioSerializer(serializers.ModelSerializer):
     servicio_nombre = serializers.CharField(source='servicio.nombre', read_only=True)
@@ -71,7 +67,6 @@ class ComboDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Combo
         fields = '__all__'
-        read_only_fields = ['creado_en']
 
 # ----------------- SERIALIZERS CARRITO (NUEVO) -----------------
 
@@ -103,7 +98,7 @@ class CarritoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Carrito
-        fields = ['id', 'cliente', 'items', 'total_carrito', 'actualizado_en']
+        fields = ['id', 'cliente', 'items', 'total_carrito']
 
     def get_total_carrito(self, obj):
         # Suma todos los subtotales de los items en el carrito
@@ -140,10 +135,10 @@ class ReservaSerializer(serializers.ModelSerializer):
             'id', 'cliente', 'horario', 'codigo_reserva', 'fecha_evento', 
             'fecha_inicio', 'direccion_evento', 'notas_especiales', 
             'metodo_pago', 'comprobante_pago', 'transaccion_id', 'subtotal', 
-            'descuento', 'impuestos', 'total', 'estado', 'creado_en', 
+            'descuento', 'impuestos', 'total', 'estado', 
             'fecha_confirmacion', 'detalles', 'cliente_nombre', 'nombre_evento'
         ]
-        read_only_fields = ['creado_en', 'cliente_nombre', 'nombre_evento']
+        read_only_fields = ['cliente_nombre', 'nombre_evento']
 
     def get_nombre_evento(self, obj):
         # Intentar obtener el nombre del primer detalle, priorizando COMBOS
