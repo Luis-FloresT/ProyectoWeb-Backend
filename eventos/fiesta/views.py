@@ -517,7 +517,7 @@ class RegistroUsuarioView(APIView):
 
                 # 9️⃣ Preparar correo de verificación
                 # CAMBIO: URL del Frontend centralizada desde settings
-                link_verificacion = f"{settings.FRONTEND_URL}/verificar?token={token}"
+                link_verificacion = f"{settings.FRONTEND_URL}/confirmar-cuenta/{token}"
                 
                 context = {
                     'nombre': nombre,
@@ -646,7 +646,7 @@ class PasswordResetRequestView(APIView):
             # Preparar correo
             # Preparar correo
             # CAMBIO: URL de producción del frontend centralizada desde settings
-            link_recuperacion = f"{settings.FRONTEND_URL}/reset-password/{reset_token.token}"
+            link_recuperacion = f"{settings.FRONTEND_URL}/restablecer-password/{user.id}/{reset_token.token}"
             
             context = {
                 'user': user,

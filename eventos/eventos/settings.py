@@ -154,7 +154,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.ngrok-free.dev",
     "https://melina-dynastical-shenita.ngrok-free.dev",
     "https://*.vercel.app",
-    "https://proyectweb-fronted.vercel.app",
+    "https://proyecto-web-fronted.vercel.app",  # URL corregida
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
@@ -180,4 +180,10 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 BACKEND_URL = env('BACKEND_URL', default='https://melina-dynastical-shenita.ngrok-free.dev')
 
 # URL del Frontend (Oficial - Corregida)
-FRONTEND_URL = env('FRONTEND_URL', default='https://proyectweb-fronted.vercel.app')
+FRONTEND_URL = env('FRONTEND_URL', default='https://proyecto-web-fronted.vercel.app')
+
+CORS_ALLOWED_ORIGINS = [
+    "https://proyecto-web-fronted.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
