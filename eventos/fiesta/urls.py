@@ -44,6 +44,7 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('registro/', RegistroUsuarioView.as_view(), name='registro_usuario'),
     path('verificar-email/', VerificarEmailView.as_view(), name='verificar_email'),
+    path('verificar-correo/<str:token>/', VerificarEmailView.as_view(), name='verificar_correo_param'),
     
     # --- ENDPOINTS MANUALES DEL CARRITO ---
     

@@ -598,27 +598,31 @@ class VerificarEmailView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        token_value = request.query_params.get('token')
+    def get(self, request, token=None):
+        token_value = token or request.query_params.get('token')
         if not token_value:
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
-        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token_value)
+        except (EmailVerificationToken.DoesNotExist, ValidationError):
+            return Response({'error': 'El enlace es inválido o ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Revisar si ha expirado
         if token_obj.is_expired():
             return Response({'error': 'El token ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Marcar usuario como verificado
-        token_obj.user.is_active = True
-        token_obj.user.save()
+        with transaction.atomic():
+            token_obj.user.is_active = True
+            token_obj.user.save()
 
-        # Eliminar el token para que no pueda reutilizarse
-        token_obj.delete()
+            # Eliminar el token para que no pueda reutilizarse
+            token_obj.delete()
 
-        # Renderizar página de éxito
-        return Response({'message': 'Correo verificado exitosamente.'}, status=status.HTTP_200_OK)
+        # Respuesta de éxito
+        return Response({'message': '¡Cuenta verificada con éxito! Ya puedes iniciar sesión'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetRequestView(APIView):
