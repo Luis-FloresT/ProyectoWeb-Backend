@@ -983,10 +983,12 @@ def agregar_al_carrito(request):
             precio = servicio_obj.precio_base
         elif tipo == 'combo':
             combo_obj = get_object_or_404(Combo, pk=item_id)
-            precio = combo_obj.precio_combo
+            # Intentar precio_combo primero, luego precio_total si existe (fallback)
+            precio = combo_obj.precio_combo or getattr(combo_obj, 'precio_total', 0)
         elif tipo == 'promocion':
             promocion_obj = get_object_or_404(Promocion, pk=item_id)
-            precio = promocion_obj.precio
+            # Priorizar precio > 0, si es 0 usar descuento_monto
+            precio = promocion_obj.precio if promocion_obj.precio > 0 else (promocion_obj.descuento_monto or 0)
         
         if not servicio_obj and not combo_obj and not promocion_obj:
             return Response({'error': 'Producto no encontrado'}, status=404)
