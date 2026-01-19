@@ -123,6 +123,8 @@ class Promocion(ModeloBaseSincronizado):
     descripcion = models.TextField(blank=True, null=True)
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     descuento_monto = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    cantidad = models.IntegerField(default=1)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()
     activo = models.BooleanField(default=True)
@@ -133,7 +135,7 @@ class Promocion(ModeloBaseSincronizado):
         db_table = 'promocion'
 
     def __str__(self):
-        return f"{self.nombre} ({self.descuento_porcentaje}% / ${self.descuento_monto})"
+        return f"{self.nombre} (${self.precio} - x{self.cantidad})"
 
 
 class Servicio(ModeloBaseSincronizado):

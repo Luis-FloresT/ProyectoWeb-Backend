@@ -904,8 +904,8 @@ class ReservaViewSet(viewsets.ModelViewSet):
                         tipo='P',
                         promocion=promocion_obj,
                         cantidad=1,
-                        precio_unitario=promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0,
-                        subtotal=promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0
+                        precio_unitario=promocion_obj.precio,
+                        subtotal=promocion_obj.precio
                     )
                 # Si hubiera promoción, se puede manejar según reglas de negocio
 
@@ -986,9 +986,7 @@ def agregar_al_carrito(request):
             precio = combo_obj.precio_combo
         elif tipo == 'promocion':
             promocion_obj = get_object_or_404(Promocion, pk=item_id)
-            # Calcular precio basado en descuento (esto depende de la lógica de negocio)
-            # Por ahora tomamos un precio base o 0 si no está definido
-            precio = promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0
+            precio = promocion_obj.precio
         
         if not servicio_obj and not combo_obj and not promocion_obj:
             return Response({'error': 'Producto no encontrado'}, status=404)
