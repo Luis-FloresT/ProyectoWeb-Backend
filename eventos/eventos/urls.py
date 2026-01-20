@@ -10,7 +10,4 @@ urlpatterns = [
     
     # 2. AGREGAR ESTA LÍNEA (Redirección al Frontend en producción):
     path('', RedirectView.as_view(url='https://proyectoweb-fronted.onrender.com/')), 
-]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

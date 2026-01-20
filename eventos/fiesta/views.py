@@ -21,8 +21,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.permissions import BasePermission, SAFE_METHODS, AllowAny, IsAuthenticated
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from rest_framework.authtoken.models import Token
 
@@ -798,7 +799,41 @@ class ReservaViewSet(viewsets.ModelViewSet):
             'detalles__combo',
             'detalles__servicio',
             'detalles__promocion'
-        )
+        ).order_by('-id')
+
+    @action(detail=True, methods=['post'])
+    def aprobar(self, request, pk=None):
+        reserva = self.get_object()
+        transaccion_id = request.data.get('transaccion_id')
+
+        if not transaccion_id:
+            return Response({'error': 'El ID de transacción es obligatorio para aprobar'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validación Antifraude: Verificar duplicados
+        duplicado = Reserva.objects.filter(transaccion_id=transaccion_id).exclude(id=reserva.id).exists()
+        if duplicado:
+            return Response({'error': 'ANTIFRAUDE: Este ID de transacción ya fue utilizado en otra reserva.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reserva.transaccion_id = transaccion_id
+        reserva.estado = 'APROBADA'
+        reserva.fecha_confirmacion = timezone.now()
+        reserva.save()
+
+        return Response({'mensaje': 'Reserva aprobada exitosamente', 'estado': reserva.estado})
+
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        reserva = self.get_object()
+        reserva.estado = 'ANULADA'
+        reserva.save()
+        return Response({'mensaje': 'Reserva anulada exitosamente', 'estado': reserva.estado})
+
+    @action(detail=True, methods=['post'])
+    def eliminar(self, request, pk=None):
+        reserva = self.get_object()
+        reserva.estado = 'ELIMINADA'
+        reserva.save()
+        return Response({'mensaje': 'Reserva marcada como eliminada', 'estado': reserva.estado})
 
     def create(self, request, *args, **kwargs):
         """
@@ -1125,14 +1160,22 @@ def confirmar_carrito(request):
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def checkout_pago(request, reserva_id):
     """
     Endpoint para que el usuario elija el método de pago y suba el comprobante si es transferencia.
     """
+    print(f"--- DEBUG CHECKOUT PAGO ---")
+    print(f"Reserva ID: {reserva_id}")
+    print(f"Content-Type: {request.content_type}")
+    print(f"Data: {request.data}")
+    print(f"Files: {request.FILES}")
+
     reserva = get_object_or_404(Reserva, id=reserva_id, cliente__email=request.user.email)
     
     metodo = request.data.get('metodo_pago')
     if metodo not in ['transferencia', 'tarjeta', 'efectivo']:
+        print(f"Metodo no valido: {metodo}")
         return Response({'error': 'Método de pago no válido'}, status=400)
     
     reserva.metodo_pago = metodo
@@ -1140,7 +1183,10 @@ def checkout_pago(request, reserva_id):
     if metodo == 'transferencia':
         comprobante = request.FILES.get('comprobante_pago')
         if comprobante:
+            print(f"Comprobante recibido: {comprobante.name}")
             reserva.comprobante_pago = comprobante
+        else:
+            print("No se recibio comprobante")
             # El estado sigue siendo PENDIENTE hasta que el administrador valide
     elif metodo == 'tarjeta':
         # En una integración real, aquí recibiríamos el token o ID de la pasarela

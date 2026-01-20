@@ -129,6 +129,8 @@ class ReservaSerializer(serializers.ModelSerializer):
     cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
     nombre_evento = serializers.SerializerMethodField()
 
+    comprobante_pago = serializers.SerializerMethodField()
+
     class Meta:
         model = Reserva
         fields = [
@@ -139,6 +141,11 @@ class ReservaSerializer(serializers.ModelSerializer):
             'fecha_confirmacion', 'detalles', 'cliente_nombre', 'nombre_evento'
         ]
         read_only_fields = ['cliente_nombre', 'nombre_evento']
+
+    def get_comprobante_pago(self, obj):
+        if obj.comprobante_pago:
+            return obj.comprobante_pago.url # Retorna algo como /media/comprobantes/foto.jpg
+        return None
 
     def get_nombre_evento(self, obj):
         # Intentar obtener el nombre del primer detalle, priorizando COMBOS

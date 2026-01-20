@@ -295,6 +295,7 @@ class Reserva(ModeloBaseSincronizado):
         ('PENDIENTE', 'Pendiente'),
         ('APROBADA', 'Aprobada'),
         ('ANULADA', 'Anulada'),
+        ('ELIMINADA', 'Eliminada'),
     ]
 
     cliente = models.ForeignKey(RegistroUsuario, on_delete=models.PROTECT, related_name='reservas')

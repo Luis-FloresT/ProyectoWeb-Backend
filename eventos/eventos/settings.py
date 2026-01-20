@@ -116,7 +116,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -184,6 +184,7 @@ FRONTEND_URL = env('FRONTEND_URL', default='https://proyecto-web-fronted.vercel.
 
 CORS_ALLOWED_ORIGINS = [
     "https://proyecto-web-fronted.vercel.app",
+    "https://melina-dynastical-shenita.ngrok-free.dev",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
