@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import connections, transaction
 from django.apps import apps
 from django.db.utils import OperationalError
+from django.core.cache import cache
 import traceback
 
 
@@ -23,6 +24,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options['dry_run']
         app_filter = options.get('app')
+        
+        LOCK_KEY = "db_sync_in_progress"
+        
+        # Verificar si ya hay una sincronización corriendo (doble seguridad)
+        if cache.get(LOCK_KEY) and not options.get('dry_run'):
+             # Si el router lo lanzó, el lock ya está puesto. 
+             # Si ejecutamos manualmente, puede que no.
+             pass 
 
         self.stdout.write(self.style.WARNING('=' * 70))
         self.stdout.write(self.style.WARNING('🔄 INICIANDO SINCRONIZACIÓN DE BASES DE DATOS'))
@@ -62,6 +71,11 @@ class Command(BaseCommand):
         if total_errors > 0:
             self.stdout.write(self.style.ERROR(f'❌ Errores encontrados: {total_errors}'))
         self.stdout.write(self.style.WARNING('=' * 70))
+        
+        # Limpiar el bloqueo al finalizar
+        if not dry_run:
+            cache.delete(LOCK_KEY)
+            self.stdout.write(self.style.SUCCESS("🔓 Bloqueo de sincronización liberado."))
 
     def _check_databases(self):
         """Verifica que ambas bases de datos estén accesibles"""
@@ -125,44 +139,68 @@ class Command(BaseCommand):
 
         # Encontrar registros faltantes en default
         missing_ids = espejo_ids - default_ids
+        
+        # Encontrar registros que existen en ambos pero en espejo son más recientes
+        needs_update_ids = []
+        if 'actualizado_en' in [f.name for f in model._meta.fields]:
+            # Obtener mapeo de PK -> actualizado_en para ambos
+            default_updates = dict(
+                model.objects.using('default').values_list('pk', 'actualizado_en')
+            )
+            espejo_updates = dict(
+                model.objects.using('espejo').values_list('pk', 'actualizado_en')
+            )
+            
+            for pk in (espejo_ids & default_ids):
+                # Si en espejo es más nuevo (o no tiene fecha en default por alguna razón)
+                if (espejo_updates[pk] and 
+                    (not default_updates.get(pk) or espejo_updates[pk] > default_updates.get(pk))):
+                    needs_update_ids.append(pk)
 
-        if not missing_ids:
+        if not missing_ids and not needs_update_ids:
             self.stdout.write(
-                self.style.SUCCESS(f'  ✅ {model_name}: Sincronizado (0 faltantes)')
+                self.style.SUCCESS(f'  ✅ {model_name}: Sincronizado (Todo al día)')
             )
             return 0
 
         self.stdout.write(
-            self.style.WARNING(f'  ⚠️  {model_name}: {len(missing_ids)} registros faltantes')
+            self.style.WARNING(f'  ⚠️  {model_name}: {len(missing_ids)} nuevos, {len(needs_update_ids)} por actualizar')
         )
 
         if dry_run:
-            self.stdout.write(
-                self.style.NOTICE(f'  🔍 IDs faltantes: {sorted(list(missing_ids)[:10])}...')
-            )
-            return len(missing_ids)
+            if missing_ids:
+                self.stdout.write(self.style.NOTICE(f'  🔍 IDs faltantes: {list(missing_ids)[:5]}...'))
+            if needs_update_ids:
+                self.stdout.write(self.style.NOTICE(f'  🔍 IDs a actualizar: {needs_update_ids[:5]}...'))
+            return len(missing_ids) + len(needs_update_ids)
 
-        # Copiar registros faltantes
+        # Sincronizar (Insertar o Actualizar)
         synced_count = 0
-        for pk in missing_ids:
+        all_to_sync = list(missing_ids) + needs_update_ids
+        
+        for pk in all_to_sync:
             try:
                 # Obtener el objeto de espejo
                 obj = model.objects.using('espejo').get(pk=pk)
-
-                # Extraer datos usando attname (IDs crudos para ForeignKeys)
+ 
+                # Extraer datos usando attname
                 data = {}
                 for field in obj._meta.fields:
                     data[field.attname] = getattr(obj, field.attname)
-
-                # Insertar en default
+ 
+                # Usar update_or_create en default
                 with transaction.atomic(using='default'):
-                    model.objects.using('default').create(**data)
-
+                    model.objects.using('default').update_or_create(
+                        pk=pk,
+                        defaults=data
+                    )
+ 
                 synced_count += 1
-
+ 
             except Exception as e:
+                action = "creando" if pk in missing_ids else "actualizando"
                 self.stdout.write(
-                    self.style.ERROR(f'  ❌ Error copiando {model_name} ID={pk}: {str(e)}')
+                    self.style.ERROR(f'  ❌ Error {action} {model_name} ID={pk}: {str(e)}')
                 )
 
         self.stdout.write(

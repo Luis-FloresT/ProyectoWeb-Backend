@@ -11,8 +11,7 @@ from .models import (
 class RegistroUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = RegistroUsuario
-        fields = ['id', 'nombre', 'apellido', 'telefono', 'email', 'fecha_registro', 'activo']
-        read_only_fields = ['fecha_registro']
+        fields = ['id', 'nombre', 'apellido', 'telefono', 'email', 'activo']
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,13 +37,11 @@ class PagoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pago
         fields = '__all__'
-        read_only_fields = ['fecha_pago']
 
 class CancelacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cancelacion
         fields = '__all__'
-        read_only_fields = ['fecha_cancelacion']
 
 # ----------------- SERIALIZERS RELACIONADOS -----------------
 
@@ -54,7 +51,6 @@ class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = '__all__'
-        read_only_fields = ['fecha_creacion']
 
 class ComboServicioSerializer(serializers.ModelSerializer):
     servicio_nombre = serializers.CharField(source='servicio.nombre', read_only=True)
@@ -71,7 +67,6 @@ class ComboDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Combo
         fields = '__all__'
-        read_only_fields = ['fecha_creacion']
 
 # ----------------- SERIALIZERS CARRITO (NUEVO) -----------------
 
@@ -103,7 +98,7 @@ class CarritoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Carrito
-        fields = ['id', 'cliente', 'items', 'total_carrito', 'actualizado_en']
+        fields = ['id', 'cliente', 'items', 'total_carrito']
 
     def get_total_carrito(self, obj):
         # Suma todos los subtotales de los items en el carrito
@@ -134,16 +129,23 @@ class ReservaSerializer(serializers.ModelSerializer):
     cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
     nombre_evento = serializers.SerializerMethodField()
 
+    comprobante_pago = serializers.SerializerMethodField()
+
     class Meta:
         model = Reserva
         fields = [
             'id', 'cliente', 'horario', 'codigo_reserva', 'fecha_evento', 
             'fecha_inicio', 'direccion_evento', 'notas_especiales', 
             'metodo_pago', 'comprobante_pago', 'transaccion_id', 'subtotal', 
-            'descuento', 'impuestos', 'total', 'estado', 'fecha_reserva', 
+            'descuento', 'impuestos', 'total', 'estado', 
             'fecha_confirmacion', 'detalles', 'cliente_nombre', 'nombre_evento'
         ]
-        read_only_fields = ['fecha_reserva', 'cliente_nombre', 'nombre_evento']
+        read_only_fields = ['cliente_nombre', 'nombre_evento']
+
+    def get_comprobante_pago(self, obj):
+        if obj.comprobante_pago:
+            return obj.comprobante_pago.url # Retorna algo como /media/comprobantes/foto.jpg
+        return None
 
     def get_nombre_evento(self, obj):
         # Intentar obtener el nombre del primer detalle, priorizando COMBOS
@@ -184,11 +186,14 @@ class ReservaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"detalles": "No se puede crear una reserva sin productos/detalles."})
         
         # Usamos una transacción para asegurar integridad de datos
-        with transaction.atomic():
-            reserva = Reserva.objects.create(**validated_data)
+        from django.db import router
+        active_db = router.db_for_write(Reserva)
+        
+        with transaction.atomic(using=active_db):
+            reserva = Reserva.objects.using(active_db).create(**validated_data)
             
             for detalle in detalles_data:
                 print(f"DEBUG SERIALIZER CREATE: Creando detalle: {detalle}")
-                DetalleReserva.objects.create(reserva=reserva, **detalle)
+                DetalleReserva.objects.using(active_db).create(reserva=reserva, **detalle)
                 
         return reserva

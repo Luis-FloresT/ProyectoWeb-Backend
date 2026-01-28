@@ -11,9 +11,9 @@ from .models import (
 
 @admin.register(RegistroUsuario)
 class RegistroUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nombre', 'apellido', 'email', 'telefono', 'fecha_registro', 'activo')
+    list_display = ('id', 'nombre', 'apellido', 'email', 'telefono', 'activo')
     search_fields = ('nombre', 'email', 'telefono')
-    list_filter = ('activo', 'fecha_registro')
+    list_filter = ('activo',)
 
 # ==========================================
 # CATÁLOGO
@@ -60,20 +60,20 @@ class DetalleReservaInline(admin.TabularInline):
 @admin.register(Reserva)
 class ReservaAdmin(admin.ModelAdmin):
     list_display = ('codigo_reserva', 'cliente', 'fecha_evento', 'estado', 'total')
-    list_filter = ('estado', 'fecha_evento', 'fecha_reserva')
+    list_filter = ('estado', 'fecha_evento')
     search_fields = ('codigo_reserva', 'cliente__nombre', 'cliente__email')
     inlines = [DetalleReservaInline]
     date_hierarchy = 'fecha_evento'
 
 @admin.register(Pago)
 class PagoAdmin(admin.ModelAdmin):
-    list_display = ('reserva', 'monto', 'metodo_pago', 'estado_pago', 'fecha_pago')
+    list_display = ('reserva', 'monto', 'metodo_pago', 'estado_pago')
     list_filter = ('estado_pago', 'metodo_pago')
     search_fields = ('reserva__codigo_reserva',)
 
 @admin.register(Cancelacion)
 class CancelacionAdmin(admin.ModelAdmin):
-    list_display = ('reserva', 'fecha_cancelacion', 'reembolso_aplicado')
+    list_display = ('reserva', 'reembolso_aplicado')
 
 @admin.register(ConfiguracionPago)
 class ConfiguracionPagoAdmin(admin.ModelAdmin):
@@ -95,9 +95,9 @@ class ItemCarritoInline(admin.TabularInline):
 
 @admin.register(Carrito)
 class CarritoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cliente', 'creado_en', 'actualizado_en')
+    list_display = ('id', 'cliente')
     search_fields = ('cliente__nombre', 'cliente__email')
-    list_filter = ('actualizado_en',)
+    list_filter = ()
     inlines = [ItemCarritoInline] # Conecta los items al carrito
 
 @admin.register(ItemCarrito)

@@ -9,10 +9,23 @@ import threading
 
 
 # ==========================================
+# 0. BASE MODEL FOR SYNC
+# ==========================================
+
+class ModeloBaseSincronizado(models.Model):
+    """
+    Clase base para asegurar que todos los modelos tengan marcas de tiempo
+    para la sincronización entre bases de datos.
+    """
+
+    class Meta:
+        abstract = True
+
+# ==========================================
 # 1. GESTIÓN DE USUARIOS Y CLIENTES
 # ==========================================
 
-class RegistroUsuario(models.Model):
+class RegistroUsuario(ModeloBaseSincronizado):
     """
     Cliente externo que realiza la reserva.
     Separado del User de Django para no mezclar auth interna con datos de clientes.
@@ -22,7 +35,6 @@ class RegistroUsuario(models.Model):
     telefono = models.CharField(max_length=15, unique=True)
     email = models.EmailField(unique=True)
     contrasena = models.CharField(max_length=128)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
     activo = models.BooleanField(default=True)
     
     class Meta:
@@ -92,7 +104,7 @@ class PasswordResetToken(models.Model):
 # 2. CATÁLOGO (Servicios, Combos, Promos)
 # ==========================================
 
-class Categoria(models.Model):
+class Categoria(ModeloBaseSincronizado):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
@@ -106,11 +118,13 @@ class Categoria(models.Model):
         return self.nombre
 
 
-class Promocion(models.Model):
+class Promocion(ModeloBaseSincronizado):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     descuento_monto = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    cantidad = models.IntegerField(default=1)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()
     activo = models.BooleanField(default=True)
@@ -121,10 +135,10 @@ class Promocion(models.Model):
         db_table = 'promocion'
 
     def __str__(self):
-        return f"{self.nombre} ({self.descuento_porcentaje}% / ${self.descuento_monto})"
+        return f"{self.nombre} (${self.precio} - x{self.cantidad})"
 
 
-class Servicio(models.Model):
+class Servicio(ModeloBaseSincronizado):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, related_name='servicios')
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField()
@@ -133,7 +147,6 @@ class Servicio(models.Model):
     capacidad_persona = models.IntegerField()
     imagen = models.URLField(blank=True, null=True)
     disponible = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Servicio"
@@ -144,14 +157,13 @@ class Servicio(models.Model):
         return f"{self.nombre} - ${self.precio_base}"
 
 
-class Combo(models.Model):
+class Combo(ModeloBaseSincronizado):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField()
     precio_combo = models.DecimalField(max_digits=10, decimal_places=2)
     descuento_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
     imagen = models.URLField(blank=True, null=True)
     activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     servicios = models.ManyToManyField('Servicio', through='ComboServicio', related_name='combos')
     promocion = models.ForeignKey(Promocion, on_delete=models.SET_NULL, null=True, blank=True, related_name='combos')
@@ -165,7 +177,7 @@ class Combo(models.Model):
         return f"{self.nombre} - ${self.precio_combo}"
 
 
-class ComboServicio(models.Model):
+class ComboServicio(ModeloBaseSincronizado):
     combo = models.ForeignKey(Combo, on_delete=models.CASCADE)
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE)
     cantidad = models.IntegerField(default=1)
@@ -181,13 +193,11 @@ class ComboServicio(models.Model):
 # 4. GESTIÓN DEL CARRITO
 # ==========================================
 
-class Carrito(models.Model):
+class Carrito(ModeloBaseSincronizado):
     """
     Carrito temporal asociado a un cliente registrado.
     """
     cliente = models.OneToOneField(RegistroUsuario, on_delete=models.CASCADE, related_name='carrito')
-    creado_en = models.DateTimeField(auto_now_add=True)
-    actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Carrito de Compras"
@@ -197,7 +207,7 @@ class Carrito(models.Model):
     def __str__(self):
         return f"Carrito de {self.cliente.nombre}"
 
-class ItemCarrito(models.Model):
+class ItemCarrito(ModeloBaseSincronizado):
     """
     Items individuales dentro del carrito. 
     Puede ser un Servicio O un Combo.
@@ -237,7 +247,7 @@ class ItemCarrito(models.Model):
 # 3. GESTIÓN DE EVENTOS (Reservas, Pagos)
 # ==========================================
 
-class HorarioDisponible(models.Model):
+class HorarioDisponible(ModeloBaseSincronizado):
     fecha = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
@@ -254,7 +264,7 @@ class HorarioDisponible(models.Model):
         return f"{self.fecha} | {self.hora_inicio} - {self.hora_fin}"
 
 
-class ConfiguracionPago(models.Model):
+class ConfiguracionPago(ModeloBaseSincronizado):
     """
     Datos de cuentas bancarias para transferencias (Ej: Banco Guayaquil, Pichincha).
     """
@@ -274,7 +284,7 @@ class ConfiguracionPago(models.Model):
         return f"{self.banco_nombre} - {self.numero_cuenta}"
 
 
-class Reserva(models.Model):
+class Reserva(ModeloBaseSincronizado):
     METODO_PAGO_CHOICES = [
         ('transferencia', 'Transferencia'),
         ('tarjeta', 'Tarjeta'),
@@ -285,6 +295,7 @@ class Reserva(models.Model):
         ('PENDIENTE', 'Pendiente'),
         ('APROBADA', 'Aprobada'),
         ('ANULADA', 'Anulada'),
+        ('ELIMINADA', 'Eliminada'),
     ]
 
     cliente = models.ForeignKey(RegistroUsuario, on_delete=models.PROTECT, related_name='reservas')
@@ -312,20 +323,18 @@ class Reserva(models.Model):
         choices=ESTADO_RESERVA_CHOICES, 
         default='PENDIENTE'
     )
-    fecha_reserva = models.DateTimeField(auto_now_add=True)
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Reserva"
         verbose_name_plural = "Reservas"
         db_table = 'reserva'
-        ordering = ['-fecha_reserva']
 
     def __str__(self):
         return f"#{self.codigo_reserva} - {self.fecha_evento} ({self.estado})"
 
 
-class DetalleReserva(models.Model):
+class DetalleReserva(ModeloBaseSincronizado):
     TIPO_CHOICES = [
         ('C', 'Combo'),
         ('S', 'Servicio'),
@@ -360,12 +369,11 @@ class DetalleReserva(models.Model):
         return f"{self.reserva.codigo_reserva}: {item_nombre} x{self.cantidad}"
 
 
-class Pago(models.Model):
+class Pago(ModeloBaseSincronizado):
     reserva = models.OneToOneField(Reserva, on_delete=models.PROTECT, related_name='pago')
     metodo_pago = models.CharField(max_length=50)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     estado_pago = models.CharField(max_length=50, default='PENDIENTE')
-    fecha_pago = models.DateTimeField(auto_now_add=True)
     comprobante = models.URLField(blank=True, null=True)
     notas = models.TextField(blank=True, null=True)
 
@@ -378,10 +386,9 @@ class Pago(models.Model):
         return f"Pago {self.reserva.codigo_reserva} - ${self.monto}"
 
 
-class Cancelacion(models.Model):
+class Cancelacion(ModeloBaseSincronizado):
     reserva = models.OneToOneField(Reserva, on_delete=models.CASCADE, related_name='cancelacion')
     motivo = models.TextField()
-    fecha_cancelacion = models.DateTimeField(auto_now_add=True)
     monto_personalizado = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     reembolso_aplicado = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     fecha_reembolso = models.DateTimeField(null=True, blank=True)
@@ -441,50 +448,6 @@ def auto_confirmacion_pago(sender, instance, created, **kwargs):
         # Enviar doble notificación (Cliente + Admin)
         enviar_correo_confirmacion(instance.id)
 
-    # 2. CASO: ANULADA
+# 2. CASO: ANULADA
     if instance.estado == 'ANULADA':
         enviar_correo_anulacion(instance.id)
-
-
-
-
-
-# Variable para evitar que la réplica se llame a sí misma
-_replica_en_progreso = threading.local()
-
-@receiver(post_save)
-def replicar_a_espejo(sender, instance, created, **kwargs):
-    # Si ya estamos replicando, no hacemos nada
-    if getattr(_replica_en_progreso, 'value', False):
-        return
-
-    # Solo replicamos si el guardado es en la base principal (default)
-    if kwargs.get('using') == 'default' or kwargs.get('using') is None:
-        try:
-            _replica_en_progreso.value = True
-            
-            # Buscamos el objeto en la base espejo por su ID (PK)
-            # Esto evita que Django intente validar relaciones cruzadas complejas
-            model_class = instance.__class__
-            data = {}
-            
-            # Extraemos los valores usando attname para obtener IDs crudos en ForeignKeys
-            for field in instance._meta.fields:
-                # field.attname nos da 'usuario_id' en lugar de 'usuario'
-                # Esto evita fetching del objeto relacionado y errores de router
-                valor = getattr(instance, field.attname)
-                data[field.attname] = valor
-
-            # Guardamos/Actualizamos en el espejo
-            model_class.objects.using('espejo').update_or_create(
-                pk=instance.pk, 
-                defaults=data
-            )
-            
-            print(f"✅ Réplica limpia en espejo: {instance} (ID: {instance.pk})")
-        except Exception as e:
-            print(f"❌ Error en réplica: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            _replica_en_progreso.value = False

@@ -1,14 +1,12 @@
 import os
 import environ
 from pathlib import Path
-  # Importante para la base de datos en la nube
 
 # 1. DEFINIR BASE_DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 2. INICIALIZAR ENVIRON
 env = environ.Env()
-# Leer el archivo .env ubicado UN NIVEL arriba de BASE_DIR
 env_path = os.path.join(BASE_DIR.parent, '.env')
 environ.Env.read_env(env_path)
 
@@ -18,7 +16,6 @@ DEBUG = env.bool('DEBUG', default=False)
 
 # 4. CONFIGURACIÓN DE BREVO (ANYMAIL)
 BREVO_API_KEY = env('BREVO_API_KEY')
-
 EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
 ANYMAIL = {
     "BREVO_API_KEY": BREVO_API_KEY,
@@ -28,8 +25,8 @@ ANYMAIL = {
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL')
 
-# Permitir todos los hosts para evitar errores en Render
-ALLOWED_HOSTS = ['*']
+# ALLOWED HOSTS (Definido más abajo en la sección de seguridad)
+# ALLOWED_HOSTS = ...
 
 # Application definition
 INSTALLED_APPS = [
@@ -55,11 +52,11 @@ REST_FRAMEWORK = {
     ],
 }
 
-# MIDDLEWARE CORREGIDO (Orden correcto y sin duplicados)
+# MIDDLEWARE: El orden de CorsMiddleware es vital
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # <--- Vital para Render
-    'corsheaders.middleware.CorsMiddleware',       # <--- Antes de respuestas comunes
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    'corsheaders.middleware.CorsMiddleware',  # <--- Siempre arriba de CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -87,41 +84,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'eventos.wsgi.application'
 
-# Database Configuration with Fast Failover
+# Database Configuration (Ajustada para estabilidad)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'sandia'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
-        'HOST': 'db', 
-        'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't persist connections to detect failures faster
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'), 
+        'PORT': env('DB_PORT'),
+        'CONN_MAX_AGE': 0,
         'OPTIONS': {
-            'connect_timeout': 2,  # 2 second connection timeout
-            'options': '-c statement_timeout=5000',  # 5 second query timeout
-        },
-    },
-    'espejo': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'sandia_espejo',
-        'USER': 'postgres',
-        'PASSWORD': '123456',
-        'HOST': 'db_espejo',
-        'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't persist connections
-        'OPTIONS': {
-            'connect_timeout': 2,  # 2 second connection timeout
-            'options': '-c statement_timeout=5000',  # 5 second query timeout
+            'connect_timeout': 5,
+            'options': '-c statement_timeout=10000',
         },
     }
 }
 
-# Database Routers
-DATABASE_ROUTERS = ['eventos.router.ReplicationRouter']
 
-# Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -129,24 +109,82 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'es'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static and Media files
 STATIC_URL = 'static/'
-# Carpeta donde se recolectarán los estáticos en producción
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = True
+# --- CONFIGURACIÓN DE CORS Y SEGURIDAD (LLAVE MAESTRA) ---
 
-# Almacenamiento optimizado de estáticos para producción (WhiteNoise)
+CORS_ALLOW_ALL_ORIGINS = True  
+CORS_ALLOW_CREDENTIALS = True
+
+# AÑADE ESTO PARA QUE ACEPTE EL HEADER DE NGROK:
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "ngrok-skip-browser-warning",  # <--- Esta línea es vital
+]
+
+APPEND_SLASH = True
+
+# ALLOWED HOSTS CONSOLIDADO (Sin duplicados, sin '*')
+ALLOWED_HOSTS = [
+    'melina-dynastical-shenita.ngrok-free.dev', 
+    'localhost', 
+    '127.0.0.1', 
+    '.vercel.app'
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.dev",
+    "https://melina-dynastical-shenita.ngrok-free.dev",
+    "https://*.vercel.app",
+    "https://proyecto-web-fronted.vercel.app",  # URL corregida
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# SEGURIDAD PROXY SSL (CRÍTICO PARA ADMIN REDIRECT)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
+# Ajustes de Cookies
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+if not DEBUG:
+    # Ajustes para producción
+    SECURE_SSL_REDIRECT = False  # Ngrok ya maneja SSL
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# URL del Backend (Dinámica para Ngrok/Render)
+BACKEND_URL = env('BACKEND_URL', default='https://melina-dynastical-shenita.ngrok-free.dev')
+
+# URL del Frontend (Oficial - Corregida)
+FRONTEND_URL = env('FRONTEND_URL', default='https://proyecto-web-fronted.vercel.app')
+
+CORS_ALLOWED_ORIGINS = [
+    "https://proyecto-web-fronted.vercel.app",
+    "https://melina-dynastical-shenita.ngrok-free.dev",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]

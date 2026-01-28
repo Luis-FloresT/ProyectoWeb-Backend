@@ -21,8 +21,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.permissions import BasePermission, SAFE_METHODS, AllowAny, IsAuthenticated
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from rest_framework.authtoken.models import Token
 
@@ -474,8 +475,12 @@ class RegistroUsuarioView(APIView):
             if RegistroUsuario.objects.filter(telefono=telefono).exists():
                 return Response({'message': 'Ese teléfono ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Determinar base de datos activa para la transacción
+            from django.db import router
+            active_db = router.db_for_write(User)
+
             # --- INICIO DE TRANSACCIÓN ATÓMICA ---
-            with transaction.atomic():
+            with transaction.atomic(using=active_db):
                 # 6️⃣ Crear usuario INACTIVO (debe verificar correo para loguearse)
                 user = User.objects.create_user(username=nombre, email=email, password=clave)
                 user.is_active = False  # Solo puede loguearse DESPUÉS de verificar email
@@ -512,9 +517,8 @@ class RegistroUsuarioView(APIView):
                 EmailVerificationToken.objects.create(user=user, token=token)
 
                 # 9️⃣ Preparar correo de verificación
-                # CAMBIO: URL de producción del backend
-                domain = "https://proyectoweb-backend-239k.onrender.com"
-                link_verificacion = f"{domain}/api/verificar-email/?token={token}"
+                # CAMBIO: URL del Frontend centralizada desde settings
+                link_verificacion = f"{settings.FRONTEND_URL}/confirmar-cuenta/{token}"
                 
                 context = {
                     'nombre': nombre,
@@ -595,27 +599,31 @@ class VerificarEmailView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get(self, request):
-        token_value = request.query_params.get('token')
+    def get(self, request, token=None):
+        token_value = token or request.query_params.get('token')
         if not token_value:
             return Response({'error': 'El parámetro "token" es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Buscar el token
-        token_obj = get_object_or_404(EmailVerificationToken, token=token_value)
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token_value)
+        except (EmailVerificationToken.DoesNotExist, ValidationError):
+            return Response({'error': 'El enlace es inválido o ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Revisar si ha expirado
         if token_obj.is_expired():
             return Response({'error': 'El token ha expirado.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Marcar usuario como verificado
-        token_obj.user.is_active = True
-        token_obj.user.save()
+        with transaction.atomic():
+            token_obj.user.is_active = True
+            token_obj.user.save()
 
-        # Eliminar el token para que no pueda reutilizarse
-        token_obj.delete()
+            # Eliminar el token para que no pueda reutilizarse
+            token_obj.delete()
 
-        # Renderizar página de éxito
-        return render(request, 'emails/verification_success.html')
+        # Respuesta de éxito
+        return Response({'message': '¡Cuenta verificada con éxito! Ya puedes iniciar sesión'}, status=status.HTTP_200_OK)
 
 
 class PasswordResetRequestView(APIView):
@@ -641,9 +649,9 @@ class PasswordResetRequestView(APIView):
             reset_token = PasswordResetToken.objects.create(user=user)
             
             # Preparar correo
-            # CAMBIO: URL de producción del frontend
-            frontend_domain = "https://proyectoweb-fronted.onrender.com"
-            link_recuperacion = f"{frontend_domain}/reset-password/{reset_token.token}"
+            # Preparar correo
+            # CAMBIO: URL de producción del frontend centralizada desde settings
+            link_recuperacion = f"{settings.FRONTEND_URL}/restablecer-password/{user.id}/{reset_token.token}"
             
             context = {
                 'user': user,
@@ -701,7 +709,9 @@ class PasswordResetConfirmView(APIView):
                 return Response({'message': 'El enlace ha expirado. Por favor solicita uno nuevo.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 2. Actualizar contraseña de forma atómica
-            with transaction.atomic():
+            from django.db import router
+            active_db = router.db_for_write(User)
+            with transaction.atomic(using=active_db):
                 user = reset_token.user
                 user.set_password(nueva_clave)
                 user.save()
@@ -789,7 +799,41 @@ class ReservaViewSet(viewsets.ModelViewSet):
             'detalles__combo',
             'detalles__servicio',
             'detalles__promocion'
-        )
+        ).order_by('-id')
+
+    @action(detail=True, methods=['post'])
+    def aprobar(self, request, pk=None):
+        reserva = self.get_object()
+        transaccion_id = request.data.get('transaccion_id')
+
+        if not transaccion_id:
+            return Response({'error': 'El ID de transacción es obligatorio para aprobar'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validación Antifraude: Verificar duplicados
+        duplicado = Reserva.objects.filter(transaccion_id=transaccion_id).exclude(id=reserva.id).exists()
+        if duplicado:
+            return Response({'error': 'ANTIFRAUDE: Este ID de transacción ya fue utilizado en otra reserva.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reserva.transaccion_id = transaccion_id
+        reserva.estado = 'APROBADA'
+        reserva.fecha_confirmacion = timezone.now()
+        reserva.save()
+
+        return Response({'mensaje': 'Reserva aprobada exitosamente', 'estado': reserva.estado})
+
+    @action(detail=True, methods=['post'])
+    def anular(self, request, pk=None):
+        reserva = self.get_object()
+        reserva.estado = 'ANULADA'
+        reserva.save()
+        return Response({'mensaje': 'Reserva anulada exitosamente', 'estado': reserva.estado})
+
+    @action(detail=True, methods=['post'])
+    def eliminar(self, request, pk=None):
+        reserva = self.get_object()
+        reserva.estado = 'ELIMINADA'
+        reserva.save()
+        return Response({'mensaje': 'Reserva marcada como eliminada', 'estado': reserva.estado})
 
     def create(self, request, *args, **kwargs):
         """
@@ -855,8 +899,12 @@ class ReservaViewSet(viewsets.ModelViewSet):
             # Cliente correcto en la reserva
             data['cliente'] = cliente.id
 
+            # Determinar base de datos activa para la transacción
+            from django.db import router
+            active_db = router.db_for_write(Reserva)
+
             # Crear reserva + detalle en transacción
-            with transaction.atomic():
+            with transaction.atomic(using=active_db):
                 serializer = self.get_serializer(data=data)
                 if not serializer.is_valid():
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -891,8 +939,8 @@ class ReservaViewSet(viewsets.ModelViewSet):
                         tipo='P',
                         promocion=promocion_obj,
                         cantidad=1,
-                        precio_unitario=promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0,
-                        subtotal=promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0
+                        precio_unitario=promocion_obj.precio,
+                        subtotal=promocion_obj.precio
                     )
                 # Si hubiera promoción, se puede manejar según reglas de negocio
 
@@ -970,12 +1018,12 @@ def agregar_al_carrito(request):
             precio = servicio_obj.precio_base
         elif tipo == 'combo':
             combo_obj = get_object_or_404(Combo, pk=item_id)
-            precio = combo_obj.precio_combo
+            # Intentar precio_combo primero, luego precio_total si existe (fallback)
+            precio = combo_obj.precio_combo or getattr(combo_obj, 'precio_total', 0)
         elif tipo == 'promocion':
             promocion_obj = get_object_or_404(Promocion, pk=item_id)
-            # Calcular precio basado en descuento (esto depende de la lógica de negocio)
-            # Por ahora tomamos un precio base o 0 si no está definido
-            precio = promocion_obj.descuento_monto if promocion_obj.descuento_monto else 0
+            # Priorizar precio > 0, si es 0 usar descuento_monto
+            precio = promocion_obj.precio if promocion_obj.precio > 0 else (promocion_obj.descuento_monto or 0)
         
         if not servicio_obj and not combo_obj and not promocion_obj:
             return Response({'error': 'Producto no encontrado'}, status=404)
@@ -1043,8 +1091,12 @@ def confirmar_carrito(request):
         if overlap_carrito:
             return Response({'error': 'Lo sentimos, este día ya ha sido reservado por otro usuario mientras procesabas tu pedido.'}, status=400)
 
+        # Determinar base de datos activa para la transacción
+        from django.db import router
+        active_db = router.db_for_write(Reserva)
+
         # Transacción Atómica: O se guarda todo (reserva + detalles) o nada.
-        with transaction.atomic():
+        with transaction.atomic(using=active_db):
             # 1. Crear Reserva
             nueva_reserva = Reserva.objects.create(
                 cliente=cliente,
@@ -1108,14 +1160,22 @@ def confirmar_carrito(request):
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def checkout_pago(request, reserva_id):
     """
     Endpoint para que el usuario elija el método de pago y suba el comprobante si es transferencia.
     """
+    print(f"--- DEBUG CHECKOUT PAGO ---")
+    print(f"Reserva ID: {reserva_id}")
+    print(f"Content-Type: {request.content_type}")
+    print(f"Data: {request.data}")
+    print(f"Files: {request.FILES}")
+
     reserva = get_object_or_404(Reserva, id=reserva_id, cliente__email=request.user.email)
     
     metodo = request.data.get('metodo_pago')
     if metodo not in ['transferencia', 'tarjeta', 'efectivo']:
+        print(f"Metodo no valido: {metodo}")
         return Response({'error': 'Método de pago no válido'}, status=400)
     
     reserva.metodo_pago = metodo
@@ -1123,7 +1183,10 @@ def checkout_pago(request, reserva_id):
     if metodo == 'transferencia':
         comprobante = request.FILES.get('comprobante_pago')
         if comprobante:
+            print(f"Comprobante recibido: {comprobante.name}")
             reserva.comprobante_pago = comprobante
+        else:
+            print("No se recibio comprobante")
             # El estado sigue siendo PENDIENTE hasta que el administrador valide
     elif metodo == 'tarjeta':
         # En una integración real, aquí recibiríamos el token o ID de la pasarela
