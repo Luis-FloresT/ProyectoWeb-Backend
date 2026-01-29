@@ -154,7 +154,6 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://proyectoweb-backend-1.onrender.com",
     "https://*.ngrok-free.dev",
-    "https://melina-dynastical-shenita.ngrok-free.dev",
     "https://*.vercel.app",
     "https://proyecto-web-fronted.vercel.app",  # URL corregida
     "http://localhost:5173",
@@ -187,7 +186,7 @@ FRONTEND_URL = env('FRONTEND_URL', default='https://proyecto-web-fronted.vercel.
 
 CORS_ALLOWED_ORIGINS = [
     "https://proyecto-web-fronted.vercel.app",
-    "https://melina-dynastical-shenita.ngrok-free.dev",
+    "https://proyectoweb-backend-1.onrender.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
