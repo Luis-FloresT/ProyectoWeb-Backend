@@ -85,3 +85,6 @@ Panel de administración en http://127.0.0.1:8000/admin/
 - **Base de datos**: Se guardan automáticamente en PostgreSQL cuando el frontend envía datos a través de la API
 - **Migraciones**: Todas las tablas (usuarios, servicios, combos, promociones, reservas, pagos, etc.) se crean automáticamente con el comando `migrate`
 - **Panel Admin**: Puedes ver/editar todos los datos en http://127.0.0.1:8000/admin/ (requiere usuario creado en `createsuperuser`)
+
+# Enlace al repositorio del backend.
+https://proyectoweb-backend-1.onrender.com/
