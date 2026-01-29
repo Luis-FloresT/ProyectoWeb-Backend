@@ -144,6 +144,7 @@ APPEND_SLASH = True
 
 # ALLOWED HOSTS CONSOLIDADO (Sin duplicados, sin '*')
 ALLOWED_HOSTS = [
+    'proyectoweb-backend-1.onrender.com',
     'melina-dynastical-shenita.ngrok-free.dev', 
     'localhost', 
     '127.0.0.1', 
@@ -151,8 +152,8 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://proyectoweb-backend-1.onrender.com",
     "https://*.ngrok-free.dev",
-    "https://melina-dynastical-shenita.ngrok-free.dev",
     "https://*.vercel.app",
     "https://proyecto-web-fronted.vercel.app",  # URL corregida
     "http://localhost:5173",
@@ -170,21 +171,22 @@ CSRF_COOKIE_SECURE = True
 
 if not DEBUG:
     # Ajustes para producción
-    SECURE_SSL_REDIRECT = False  # Ngrok ya maneja SSL
+    SECURE_SSL_REDIRECT = True  
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# URL del Backend (Dinámica para Ngrok/Render)
-BACKEND_URL = env('BACKEND_URL', default='https://melina-dynastical-shenita.ngrok-free.dev')
+
+# Cambia esto:
+BACKEND_URL = env('BACKEND_URL', default='https://proyectoweb-backend-1.onrender.com')
 
 # URL del Frontend (Oficial - Corregida)
 FRONTEND_URL = env('FRONTEND_URL', default='https://proyecto-web-fronted.vercel.app')
 
 CORS_ALLOWED_ORIGINS = [
     "https://proyecto-web-fronted.vercel.app",
-    "https://melina-dynastical-shenita.ngrok-free.dev",
+    "https://proyectoweb-backend-1.onrender.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
